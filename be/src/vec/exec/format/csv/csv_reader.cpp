@@ -549,6 +549,7 @@ void CsvReader::_split_line(const Slice& line) {
     if (_file_format_type == TFileFormatType::FORMAT_PROTO) {
         _split_line_for_proto_format(line);
     } else {
+        std::cout << line.data << std::endl;
         const char* value = line.data;
         size_t start = 0;     // point to the start pos of next col value.
         size_t curpos = 0;    // point to the start pos of separator matching sequence.
@@ -708,6 +709,7 @@ Status CsvReader::_prepare_parse(size_t* read_line, bool* is_parse_name) {
     _line_reader = NewPlainTextLineReader::create_unique(
             _profile, _file_reader, _decompressor.get(), _size, _line_delimiter,
             _line_delimiter_length, start_offset);
+
 
     return Status::OK();
 }

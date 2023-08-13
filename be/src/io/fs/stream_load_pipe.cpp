@@ -53,6 +53,7 @@ Status StreamLoadPipe::read_at_impl(size_t /*offset*/, Slice result, size_t* byt
                                     const IOContext* /*io_ctx*/) {
     SCOPED_SWITCH_THREAD_MEM_TRACKER_LIMITER(ExecEnv::GetInstance()->orphan_mem_tracker());
     *bytes_read = 0;
+    std::cout << "read_at_impl..." << result.data << std::endl;
     size_t bytes_req = result.size;
     char* to = result.data;
     if (UNLIKELY(bytes_req == 0)) {
@@ -61,6 +62,7 @@ Status StreamLoadPipe::read_at_impl(size_t /*offset*/, Slice result, size_t* byt
     while (*bytes_read < bytes_req) {
         std::unique_lock<std::mutex> l(_lock);
         while (!_cancelled && !_finished && _buf_queue.empty()) {
+            std::cout << "waiting..." << std::endl;
             _get_cond.wait(l);
         }
         // cancelled

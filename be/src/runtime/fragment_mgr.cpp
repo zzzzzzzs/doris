@@ -588,6 +588,7 @@ Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params) {
         RETURN_IF_ERROR(_exec_env->stream_load_executor()->execute_plan_fragment(stream_load_ctx));
         return Status::OK();
     } else {
+        std::cout << "TExecPlanFragmentParams exec_plan_fragment func ..." << std::endl;
         return exec_plan_fragment(params, empty_function);
     }
 }
@@ -768,6 +769,8 @@ Status FragmentMgr::_get_query_ctx(const Params& params, TUniqueId query_id, boo
 
 Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params,
                                        const FinishCallback& cb) {
+    std::cout << "yes func ..." << std::endl;
+
     auto tracer = telemetry::is_current_span_valid() ? telemetry::get_tracer("tracer")
                                                      : telemetry::get_noop_tracer();
     auto cur_span = opentelemetry::trace::Tracer::GetCurrentSpan();

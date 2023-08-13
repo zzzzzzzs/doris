@@ -456,6 +456,7 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TExecPlanFragmentParams& params : t_request.paramsList) {
+            std::cout << "_exec_plan_fragment_impl func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
@@ -525,6 +526,7 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
     bool ret = _heavy_work_pool.try_offer([request, result, done]() {
         VLOG_RPC << "fetch table schema";
         brpc::ClosureGuard closure_guard(done);
+        std::cout << "fetch_table_schema func ... " << std::endl;
         TFileScanRange file_scan_range;
         Status st = Status::OK();
         {

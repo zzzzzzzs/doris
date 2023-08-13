@@ -77,7 +77,9 @@ public class ConnectContext {
     protected volatile long forwardedStmtId;
 
     // set for stream load with sql
+    // TODO: maybe use queryId
     protected volatile TUniqueId loadId;
+    // TODO: here should delete
     protected volatile long backendId;
     protected volatile LoadTaskInfo streamLoadInfo;
 
@@ -342,13 +344,13 @@ public class ConnectContext {
         this.loadId = loadId;
     }
 
-    public void setStreamLoadInfo(LoadTaskInfo streamLoadInfo) {
-        this.streamLoadInfo = streamLoadInfo;
-    }
-
-    public LoadTaskInfo getStreamLoadInfo() {
-        return streamLoadInfo;
-    }
+//    public void setStreamLoadInfo(LoadTaskInfo streamLoadInfo) {
+//        this.streamLoadInfo = streamLoadInfo;
+//    }
+//
+//    public LoadTaskInfo getStreamLoadInfo() {
+//        return streamLoadInfo;
+//    }
 
     public void setStmtId(long stmtId) {
         this.stmtId = stmtId;

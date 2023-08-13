@@ -96,103 +96,7 @@ import org.apache.doris.system.SystemInfoService;
 import org.apache.doris.tablefunction.MetadataGenerator;
 import org.apache.doris.task.LoadEtlTask;
 import org.apache.doris.task.StreamLoadTask;
-import org.apache.doris.thrift.FrontendService;
-import org.apache.doris.thrift.FrontendServiceVersion;
-import org.apache.doris.thrift.TAddColumnsRequest;
-import org.apache.doris.thrift.TAddColumnsResult;
-import org.apache.doris.thrift.TAutoIncrementRangeRequest;
-import org.apache.doris.thrift.TAutoIncrementRangeResult;
-import org.apache.doris.thrift.TBeginTxnRequest;
-import org.apache.doris.thrift.TBeginTxnResult;
-import org.apache.doris.thrift.TBinlog;
-import org.apache.doris.thrift.TCheckAuthRequest;
-import org.apache.doris.thrift.TCheckAuthResult;
-import org.apache.doris.thrift.TColumn;
-import org.apache.doris.thrift.TColumnDef;
-import org.apache.doris.thrift.TColumnDesc;
-import org.apache.doris.thrift.TCommitTxnRequest;
-import org.apache.doris.thrift.TCommitTxnResult;
-import org.apache.doris.thrift.TConfirmUnusedRemoteFilesRequest;
-import org.apache.doris.thrift.TConfirmUnusedRemoteFilesResult;
-import org.apache.doris.thrift.TDescribeTableParams;
-import org.apache.doris.thrift.TDescribeTableResult;
-import org.apache.doris.thrift.TDescribeTablesParams;
-import org.apache.doris.thrift.TDescribeTablesResult;
-import org.apache.doris.thrift.TExecPlanFragmentParams;
-import org.apache.doris.thrift.TFeResult;
-import org.apache.doris.thrift.TFetchResourceResult;
-import org.apache.doris.thrift.TFetchSchemaTableDataRequest;
-import org.apache.doris.thrift.TFetchSchemaTableDataResult;
-import org.apache.doris.thrift.TFinishTaskRequest;
-import org.apache.doris.thrift.TFrontendPingFrontendRequest;
-import org.apache.doris.thrift.TFrontendPingFrontendResult;
-import org.apache.doris.thrift.TFrontendPingFrontendStatusCode;
-import org.apache.doris.thrift.TGetBinlogLagResult;
-import org.apache.doris.thrift.TGetBinlogRequest;
-import org.apache.doris.thrift.TGetBinlogResult;
-import org.apache.doris.thrift.TGetDbsParams;
-import org.apache.doris.thrift.TGetDbsResult;
-import org.apache.doris.thrift.TGetMasterTokenRequest;
-import org.apache.doris.thrift.TGetMasterTokenResult;
-import org.apache.doris.thrift.TGetQueryStatsRequest;
-import org.apache.doris.thrift.TGetSnapshotRequest;
-import org.apache.doris.thrift.TGetSnapshotResult;
-import org.apache.doris.thrift.TGetTablesParams;
-import org.apache.doris.thrift.TGetTablesResult;
-import org.apache.doris.thrift.TGetTabletReplicaInfosRequest;
-import org.apache.doris.thrift.TGetTabletReplicaInfosResult;
-import org.apache.doris.thrift.TInitExternalCtlMetaRequest;
-import org.apache.doris.thrift.TInitExternalCtlMetaResult;
-import org.apache.doris.thrift.TListPrivilegesResult;
-import org.apache.doris.thrift.TListTableStatusResult;
-import org.apache.doris.thrift.TLoadTxn2PCRequest;
-import org.apache.doris.thrift.TLoadTxn2PCResult;
-import org.apache.doris.thrift.TLoadTxnBeginRequest;
-import org.apache.doris.thrift.TLoadTxnBeginResult;
-import org.apache.doris.thrift.TLoadTxnCommitRequest;
-import org.apache.doris.thrift.TLoadTxnCommitResult;
-import org.apache.doris.thrift.TLoadTxnRollbackRequest;
-import org.apache.doris.thrift.TLoadTxnRollbackResult;
-import org.apache.doris.thrift.TMasterOpRequest;
-import org.apache.doris.thrift.TMasterOpResult;
-import org.apache.doris.thrift.TMasterResult;
-import org.apache.doris.thrift.TMySqlLoadAcquireTokenResult;
-import org.apache.doris.thrift.TNetworkAddress;
-import org.apache.doris.thrift.TPipelineFragmentParams;
-import org.apache.doris.thrift.TPrivilegeCtrl;
-import org.apache.doris.thrift.TPrivilegeHier;
-import org.apache.doris.thrift.TPrivilegeStatus;
-import org.apache.doris.thrift.TPrivilegeType;
-import org.apache.doris.thrift.TQueryOptions;
-import org.apache.doris.thrift.TQueryStatsResult;
-import org.apache.doris.thrift.TQueryType;
-import org.apache.doris.thrift.TReplicaInfo;
-import org.apache.doris.thrift.TReportExecStatusParams;
-import org.apache.doris.thrift.TReportExecStatusResult;
-import org.apache.doris.thrift.TReportRequest;
-import org.apache.doris.thrift.TRestoreSnapshotRequest;
-import org.apache.doris.thrift.TRestoreSnapshotResult;
-import org.apache.doris.thrift.TRollbackTxnRequest;
-import org.apache.doris.thrift.TRollbackTxnResult;
-import org.apache.doris.thrift.TShowVariableRequest;
-import org.apache.doris.thrift.TShowVariableResult;
-import org.apache.doris.thrift.TSnapshotLoaderReportRequest;
-import org.apache.doris.thrift.TSnapshotType;
-import org.apache.doris.thrift.TStatus;
-import org.apache.doris.thrift.TStatusCode;
-import org.apache.doris.thrift.TStreamLoadMultiTablePutResult;
-import org.apache.doris.thrift.TStreamLoadPutRequest;
-import org.apache.doris.thrift.TStreamLoadPutResult;
-import org.apache.doris.thrift.TStreamLoadWithLoadStatusRequest;
-import org.apache.doris.thrift.TStreamLoadWithLoadStatusResult;
-import org.apache.doris.thrift.TTableIndexQueryStats;
-import org.apache.doris.thrift.TTableQueryStats;
-import org.apache.doris.thrift.TTableStatus;
-import org.apache.doris.thrift.TUniqueId;
-import org.apache.doris.thrift.TUpdateExportTaskStatusRequest;
-import org.apache.doris.thrift.TUpdateFollowerStatsCacheRequest;
-import org.apache.doris.thrift.TWaitingTxnStatusRequest;
-import org.apache.doris.thrift.TWaitingTxnStatusResult;
+import org.apache.doris.thrift.*;
 import org.apache.doris.transaction.DatabaseTransactionMgr;
 import org.apache.doris.transaction.TabletCommitInfo;
 import org.apache.doris.transaction.TransactionState;
@@ -1702,10 +1606,15 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         TStatus status = new TStatus(TStatusCode.OK);
         result.setStatus(status);
         try {
-            if (Config.enable_pipeline_load) {
-                result.setPipelineParams(pipelineStreamLoadPutImpl(request));
+            // TODO 这里是测试用的，不是最终的代码
+            if (!Strings.isNullOrEmpty(request.getLoadSql())) {
+                streamLoadPutWithSqlImpl(request);
             } else {
-                result.setParams(streamLoadPutImpl(request));
+                if (Config.enable_pipeline_load) {
+                    result.setPipelineParams(pipelineStreamLoadPutImpl(request));
+                } else {
+                    result.setParams(streamLoadPutImpl(request));
+                }
             }
         } catch (UserException e) {
             LOG.warn("failed to get stream load plan: {}", e.getMessage());
@@ -1835,8 +1744,18 @@ public class FrontendServiceImpl implements FrontendService.Iface {
     private void streamLoadPutWithSqlImpl(TStreamLoadPutRequest request) throws UserException {
         LOG.info("receive stream load put request");
         String loadSql = request.getLoadSql();
-        ConnectContext ctx = new ConnectContext(null);
+        String cluster = request.getCluster();
+        if (Strings.isNullOrEmpty(cluster)) {
+            cluster = SystemInfoService.DEFAULT_CLUSTER;
+        }
+        request.setFileType(TFileType.FILE_STREAM);
+        ConnectContext ctx = new ConnectContext();
+        if (Strings.isNullOrEmpty(request.getToken())) {
+            checkPasswordAndPrivs(cluster, request.getUser(), request.getPasswd(), request.getDb(), request.getTbl(),
+                request.getUserIp(), PrivPredicate.LOAD);
+        }
         ctx.setEnv(Env.getCurrentEnv());
+        ctx.setLoadId(request.getLoadId());
         ctx.setQueryId(request.getLoadId());
         ctx.setCluster(SystemInfoService.DEFAULT_CLUSTER);
         ctx.setCurrentUserIdentity(UserIdentity.ROOT);
@@ -1844,8 +1763,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         ctx.setThreadLocalInfo();
         ctx.setBackendId(request.getBackendId());
         StreamLoadTask streamLoadTask = StreamLoadTask.fromTStreamLoadPutRequest(request);
-        ctx.setStreamLoadInfo(streamLoadTask);
-        ctx.setLoadId(request.getLoadId());
+//        ctx.setStreamLoadInfo(streamLoadTask);
         SqlScanner input = new SqlScanner(new StringReader(loadSql), ctx.getSessionVariable().getSqlMode());
         SqlParser parser = new SqlParser(input);
         try {
@@ -1853,6 +1771,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             parsedStmt.setOrigStmt(new OriginStatement(loadSql, 0));
             parsedStmt.setUserInfo(ctx.getCurrentUserIdentity());
             StmtExecutor executor = new StmtExecutor(ctx, parsedStmt);
+//            executor.executeByLegacy(request.getLoadId());
             ctx.setExecutor(executor);
             TQueryOptions tQueryOptions = ctx.getSessionVariable().toThrift();
             executor.analyze(tQueryOptions);
@@ -1863,11 +1782,11 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
             coord.exec();
         } catch (UserException e) {
-            LOG.warn("exec sql error {}", e.getMessage());
-            throw new UserException("exec sql error");
+            LOG.warn("exec sql error {}", e);
+            throw new UserException("exec sql error", e);
         } catch (Throwable e) {
             LOG.warn("exec sql error catch unknown result.", e);
-            throw new UserException("exec sql error catch unknown result");
+            throw new UserException("exec sql error catch unknown result", e);
         }
     }
 
