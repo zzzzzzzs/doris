@@ -401,14 +401,23 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         } catch (TException e) {
             throw new AnalysisException("getFetchTableStructureRequest exception", e);
         }
-        System.out.println(columns.toString());
+        System.out.println("columns is : " + columns.toString());
         return columns;
     }
 
     protected Backend getBackend() {
         for (Backend be : Env.getCurrentSystemInfo().getIdToBackend().values()) {
-            if (be.isAlive()) {
-                return be;
+            // TODO for stream load，这里判断有问题，先这样写
+            if (getTFileType() == TFileType.FILE_STREAM || getTFileType() == TFileType.FILE_LOCAL) {
+                ConnectContext ctx = ConnectContext.get();
+                long streamLoadBackendId = ctx.getBackendId();
+                if (be.getId() == streamLoadBackendId) {
+                    return be;
+                }
+            } else {
+                if (be.isAlive()) {
+                    return be;
+                }
             }
         }
         return null;

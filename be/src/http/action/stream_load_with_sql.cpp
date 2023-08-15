@@ -66,6 +66,7 @@
 #include "util/uid_util.h"
 
 // TODO The functions in this file need to be improved
+// 在 on_header 中需要获取到 plan_fragment，因此需要读取文件
 namespace doris {
 using namespace ErrorCode;
 
@@ -121,28 +122,6 @@ void StreamLoadWithSqlAction::handle(HttpRequest* req) {
         HttpChannel::send_reply(req, str);
         return;
     }
-
-    // query stream load status
-    // put request
-    // TStreamLoadWithLoadStatusRequest request;
-    // TStreamLoadWithLoadStatusResult result;
-    // request.__set_loadId(ctx->id.to_thrift());
-    // TNetworkAddress master_addr = _exec_env->master_info()->network_address;
-    // ThriftRpcHelper::rpc<FrontendServiceClient>(
-    //         master_addr.hostname, master_addr.port,
-    //         [&request, &result](FrontendServiceConnection& client) {
-    //             client->streamLoadWithLoadStatus(result, request);
-    //         });
-//        Status stream_load_status(result.status);
-//        if (stream_load_status.ok()) {
-//            ctx->txn_id = result.txn_id;
-//            ctx->number_total_rows = result.total_rows;
-//            ctx->number_loaded_rows = result.loaded_rows;
-//            ctx->number_filtered_rows = result.filtered_rows;
-//            ctx->number_unselected_rows = result.unselected_rows;
-//            break;
-//        }
-
     auto str = std::string(ctx->to_json());
     // add new line at end
     str = str + '\n';
@@ -159,21 +138,6 @@ void StreamLoadWithSqlAction::handle(HttpRequest* req) {
 
 Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx) {
     std::cout << "_handle func..." << std::endl;
-    if (ctx->body_bytes > 0 && ctx->receive_bytes != ctx->body_bytes) {
-        LOG(WARNING) << "recevie body don't equal with body bytes, body_bytes=" << ctx->body_bytes
-                     << ", receive_bytes=" << ctx->receive_bytes << ", id=" << ctx->id;
-        return Status::InternalError("receive body don't equal with body bytes");
-    }
-
-//     if (!ctx->use_streaming) {
-//         // if we use non-streaming, we need to close file first,
-//         // then execute_plan_fragment here
-//         // this will close file
-//         ctx->body_sink.reset();
-// //        _process_put(req, ctx);
-//     } else {
-//         RETURN_IF_ERROR(ctx->body_sink->finish());
-//     }
      RETURN_IF_ERROR(ctx->body_sink->finish());
     std::cout << "wait stream load finish..." << std::endl;
     // wait stream load finish
@@ -201,22 +165,6 @@ Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<S
             return Status::InvalidArgument("Invalid mem limit format, {}", e.what());
         }
     }
-    if (ctx->use_streaming) {
-        // TODO 这里是为了 FileFactory::create_pipe_reader 函数可以获取到 pipe，从而使用 file_reader
-//        auto pipe = std::make_shared<io::StreamLoadPipe>(
-//                io::kMaxPipeBufferedBytes /* max_buffered_bytes */, 64 * 1024 /* min_chunk_size */,
-//                ctx->body_bytes /* total_length */);
-//        request.fileType = TFileType::FILE_STREAM;
-//        ctx->body_sink = pipe;
-//        ctx->pipe = pipe;
-//        RETURN_IF_ERROR(_exec_env->new_load_stream_mgr()->put(ctx->id, ctx));
-    }
-    // TODO We also need to support some other
-    else {
-        request.__isset.path = true;
-        request.fileType = TFileType::FILE_LOCAL;
-        request.__set_file_size(ctx->body_bytes);
-    }
     if (ctx->timeout_second != -1) {
         request.__set_timeout(ctx->timeout_second);
     }
@@ -229,17 +177,6 @@ Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<S
                 client->streamLoadPut(ctx->put_result, request);
             }));
     ctx->stream_load_put_cost_nanos = MonotonicNanos() - stream_load_put_start_time;
-    // Status plan_status(Status::create(ctx->put_result.status));
-    // if (!plan_status.ok()) {
-    //     LOG(WARNING) << "exec streaming load failed. errmsg=" << plan_status << ctx->brief();
-    //     return plan_status;
-    // }
-//    std::future_status future_status =
-//            ctx->future.wait_for(std::chrono::seconds(config::stream_load_report_timeout_second));
-//    if (future_status == std::future_status::timeout) {
-//        return Status::TimedOut("stream load timeout");
-//    }
-    // RETURN_IF_ERROR(ctx->future.get());
     return Status::OK();
 }
 
@@ -257,6 +194,8 @@ int StreamLoadWithSqlAction::on_header(HttpRequest* req) {
     if (ctx->label.empty()) {
         ctx->label = generate_uuid_string();
     }
+
+
 
     ctx->two_phase_commit = req->header(HTTP_TWO_PHASE_COMMIT) == "true" ? true : false;
 
@@ -295,68 +234,27 @@ Status StreamLoadWithSqlAction::_on_header(HttpRequest* http_req,
         return Status::InternalError("no valid Basic authorization");
     }
 
-    // get format of this put
-    if (!http_req->header(HTTP_COMPRESS_TYPE).empty() &&
-        iequal(http_req->header(HTTP_FORMAT_KEY), "JSON")) {
-        return Status::InternalError("compress data of JSON format is not supported.");
-    }
-    std::string format_str = http_req->header(HTTP_FORMAT_KEY);
-    if (iequal(format_str, BeConsts::CSV_WITH_NAMES) ||
-        iequal(format_str, BeConsts::CSV_WITH_NAMES_AND_TYPES)) {
-        ctx->header_type = format_str;
-        //treat as CSV
-        format_str = BeConsts::CSV;
-    }
-    LoadUtil::parse_format(format_str, http_req->header(HTTP_COMPRESS_TYPE), &ctx->format,
-                           &ctx->compress_type);
-    if (ctx->format == TFileFormatType::FORMAT_UNKNOWN) {
-        return Status::InternalError("unknown data format, format={}",
-                                     http_req->header(HTTP_FORMAT_KEY));
-    }
 
     // check content length
     ctx->body_bytes = 0;
-    size_t csv_max_body_bytes = config::streaming_load_max_mb * 1024 * 1024;
-    size_t json_max_body_bytes = config::streaming_load_json_max_mb * 1024 * 1024;
-    bool read_json_by_line = false;
-    if (!http_req->header(HTTP_READ_JSON_BY_LINE).empty()) {
-        if (iequal(http_req->header(HTTP_READ_JSON_BY_LINE), "true")) {
-            read_json_by_line = true;
-        }
-    }
-    if (!http_req->header(HttpHeaders::CONTENT_LENGTH).empty()) {
-        ctx->body_bytes = std::stol(http_req->header(HttpHeaders::CONTENT_LENGTH));
-        // json max body size
-        if ((ctx->format == TFileFormatType::FORMAT_JSON) &&
-            (ctx->body_bytes > json_max_body_bytes) && !read_json_by_line) {
-            return Status::InternalError(
-                    "The size of this batch exceed the max size [{}]  of json type data "
-                    " data [ {} ]. Split the file, or use 'read_json_by_line'",
-                    json_max_body_bytes, ctx->body_bytes);
-        }
-        // csv max body size
-        else if (ctx->body_bytes > csv_max_body_bytes) {
-            LOG(WARNING) << "body exceed max size." << ctx->brief();
-            return Status::InternalError("body exceed max size: {}, data: {}", csv_max_body_bytes,
-                                         ctx->body_bytes);
-        }
-    } else {
-#ifndef BE_TEST
-        evhttp_connection_set_max_body_size(
-                evhttp_request_get_connection(http_req->get_evhttp_request()), csv_max_body_bytes);
-#endif
-    }
+    // size_t csv_max_body_bytes = config::streaming_load_max_mb * 1024 * 1024;
+    // size_t json_max_body_bytes = config::streaming_load_json_max_mb * 1024 * 1024;
+    // bool read_json_by_line = false;
 
-    if (!http_req->header(HTTP_TIMEOUT).empty()) {
-        try {
-            ctx->timeout_second = std::stoi(http_req->header(HTTP_TIMEOUT));
-        } catch (const std::invalid_argument& e) {
-            return Status::InvalidArgument("Invalid timeout format, {}", e.what());
-        }
-    }
-    if (!http_req->header(HTTP_COMMENT).empty()) {
-        ctx->load_comment = http_req->header(HTTP_COMMENT);
-    }
+    auto pipe = std::make_shared<io::StreamLoadPipe>(
+            io::kMaxPipeBufferedBytes /* max_buffered_bytes */, 64 * 1024 /* min_chunk_size */,
+            ctx->body_bytes /* total_length */);
+    ctx->body_sink = pipe;
+    ctx->pipe = pipe;
+
+    auto scheme_pipe = std::make_shared<io::StreamLoadPipe>(
+            io::kMaxPipeBufferedBytes /* max_buffered_bytes */, 64 * 1024 /* min_chunk_size */,
+            ctx->body_bytes /* total_length */);
+    ctx->scheme_body_sink = scheme_pipe;
+    ctx->scheme_pipe = scheme_pipe;
+
+    RETURN_IF_ERROR(_exec_env->new_load_stream_mgr()->put(ctx->id, ctx));
+
     // begin transaction
     int64_t begin_txn_start_time = MonotonicNanos();
     RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx.get()));
@@ -413,86 +311,31 @@ Status StreamLoadWithSqlAction::_process_put(HttpRequest* http_req,
                                              std::shared_ptr<StreamLoadContext> ctx) {
     std::cout << "_process_put func..." << std::endl;
 
-    // Now we use stream
-    ctx->use_streaming = LoadUtil::is_format_support_streaming(ctx->format);
+    TStreamLoadPutRequest request;
+    set_request_auth(&request, ctx->auth);
+    request.db = ctx->db;
+    request.tbl = ctx->table;
+    request.txnId = ctx->txn_id;
+    request.formatType = ctx->format;
+    request.__set_compress_type(ctx->compress_type);
+    request.__set_header_type(ctx->header_type);
+    request.__set_loadId(ctx->id.to_thrift());
+    request.fileType = TFileType::FILE_STREAM;
 
-    // put request
-    // TStreamLoadPutRequest request;
-    // set_request_auth(&request, ctx->auth);
-    // request.db = ctx->db;
-    // request.tbl = ctx->table;
-    // request.txnId = ctx->txn_id;
-    // request.formatType = ctx->format;
-    // request.__set_compress_type(ctx->compress_type);
-    // request.__set_header_type(ctx->header_type);
-    // request.__set_loadId(ctx->id.to_thrift());
-    if (ctx->use_streaming) {
-        auto pipe = std::make_shared<io::StreamLoadPipe>(
-                io::kMaxPipeBufferedBytes /* max_buffered_bytes */, 64 * 1024 /* min_chunk_size */,
-                ctx->body_bytes /* total_length */);
-        // request.fileType = TFileType::FILE_STREAM;
-        ctx->body_sink = pipe;
-        ctx->pipe = pipe;
-        RETURN_IF_ERROR(_exec_env->new_load_stream_mgr()->put(ctx->id, ctx));
-    } else {
+    // plan this load
+    TNetworkAddress master_addr = _exec_env->master_info()->network_address;
+    int64_t stream_load_put_start_time = MonotonicNanos();
+    RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
+            master_addr.hostname, master_addr.port,
+            [&request, ctx](FrontendServiceConnection& client) {
+                client->streamLoadPut(ctx->put_result, request);
+            }));
+    ctx->stream_load_put_cost_nanos = MonotonicNanos() - stream_load_put_start_time;
+    Status plan_status(Status::create(ctx->put_result.status));
+    if (!plan_status.ok()) {
+        LOG(WARNING) << "plan streaming load failed. errmsg=" << plan_status << ctx->brief();
+        return plan_status;
     }
-
-//     // put request
-//     TStreamLoadPutRequest request;
-//     set_request_auth(&request, ctx->auth);
-//     request.txnId = ctx->txn_id;
-//     request.__set_version(1);
-//     request.__set_load_sql(http_req->header(HTTP_SQL));
-//     request.__set_loadId(ctx->id.to_thrift());
-//     request.__set_label(ctx->label);
-//     if (_exec_env->master_info()->__isset.backend_id) {
-//         request.__set_backend_id(_exec_env->master_info()->backend_id);
-//     } else {
-//         LOG(WARNING) << "_exec_env->master_info not set backend_id";
-//     }
-//     if (!http_req->header(HTTP_EXEC_MEM_LIMIT).empty()) {
-//         try {
-//             request.__set_execMemLimit(std::stoll(http_req->header(HTTP_EXEC_MEM_LIMIT)));
-//         } catch (const std::invalid_argument& e) {
-//             return Status::InvalidArgument("Invalid mem limit format, {}", e.what());
-//         }
-//     }
-//     if (ctx->use_streaming) {
-//         // TODO 这里是为了 FileFactory::create_pipe_reader 函数可以获取到 pipe，从而使用 file_reader
-// //        auto pipe = std::make_shared<io::StreamLoadPipe>(
-// //                io::kMaxPipeBufferedBytes /* max_buffered_bytes */, 64 * 1024 /* min_chunk_size */,
-// //                ctx->body_bytes /* total_length */);
-// //        request.fileType = TFileType::FILE_STREAM;
-// //        ctx->body_sink = pipe;
-// //        ctx->pipe = pipe;
-// //        RETURN_IF_ERROR(_exec_env->new_load_stream_mgr()->put(ctx->id, ctx));
-//     }
-//     // TODO We also need to support some other
-//     else {
-//         request.__isset.path = true;
-//         request.fileType = TFileType::FILE_LOCAL;
-//         request.__set_file_size(ctx->body_bytes);
-//     }
-//     if (ctx->timeout_second != -1) {
-//         request.__set_timeout(ctx->timeout_second);
-//     }
-//     request.__set_thrift_rpc_timeout_ms(config::thrift_rpc_timeout_ms);
-
-    // // exec this load
-    // TNetworkAddress master_addr = _exec_env->master_info()->network_address;
-    // int64_t stream_load_put_start_time = MonotonicNanos();
-    // RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
-    //         master_addr.hostname, master_addr.port,
-    //         [&request, ctx](FrontendServiceConnection& client) {
-    //             client->streamLoadPut(ctx->put_result, request);
-    //         }));
-    // ctx->stream_load_put_cost_nanos = MonotonicNanos() - stream_load_put_start_time;
-    // Status plan_status(Status::create(ctx->put_result.status));
-    // if (!plan_status.ok()) {
-    //     LOG(WARNING) << "exec streaming load failed. errmsg=" << plan_status << ctx->brief();
-    //     return plan_status;
-    // }
-    // TODO perhaps the `execute_plan_fragment` function needs to be executed here
     return Status::OK();
 }
 

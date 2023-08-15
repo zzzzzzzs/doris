@@ -162,6 +162,7 @@ public:
     // TODO delete code
     // for local file
     // std::string path;
+    bool need_schema = true;
 
     std::string txn_operation = "";
 
@@ -174,6 +175,10 @@ public:
 
     std::shared_ptr<MessageBodySink> body_sink;
     std::shared_ptr<io::StreamLoadPipe> pipe;
+
+    std::shared_ptr<MessageBodySink> scheme_body_sink;
+    std::shared_ptr<io::StreamLoadPipe> scheme_pipe;
+
     TStreamLoadPutResult put_result;
     TStreamLoadMultiTablePutResult multi_table_put_result;
 
