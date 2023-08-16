@@ -138,45 +138,15 @@ void StreamLoadWithSqlAction::handle(HttpRequest* req) {
 
 Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx) {
     std::cout << "_handle func..." << std::endl;
-     RETURN_IF_ERROR(ctx->body_sink->finish());
-    std::cout << "wait stream load finish..." << std::endl;
     // wait stream load finish
+    RETURN_IF_ERROR(ctx->body_sink->finish());
+    std::cout << "wait stream load finish..." << std::endl;
     // RETURN_IF_ERROR(ctx->future.get());
+    // If put file success we need commit this load
+    int64_t commit_and_publish_start_time = MonotonicNanos();
+    RETURN_IF_ERROR(_exec_env->stream_load_executor()->commit_txn(ctx.get()));
+    ctx->commit_and_publish_txn_cost_nanos = MonotonicNanos() - commit_and_publish_start_time;
     std::cout << "success stream load..." << std::endl;
-    // _process_put(req, ctx);
-     // exec this load
-     // put request
-    TStreamLoadPutRequest request;
-    set_request_auth(&request, ctx->auth);
-    request.txnId = ctx->txn_id;
-    request.__set_version(1);
-    request.__set_load_sql(http_req->header(HTTP_SQL));
-    request.__set_loadId(ctx->id.to_thrift());
-    request.__set_label(ctx->label);
-    if (_exec_env->master_info()->__isset.backend_id) {
-        request.__set_backend_id(_exec_env->master_info()->backend_id);
-    } else {
-        LOG(WARNING) << "_exec_env->master_info not set backend_id";
-    }
-    if (!http_req->header(HTTP_EXEC_MEM_LIMIT).empty()) {
-        try {
-            request.__set_execMemLimit(std::stoll(http_req->header(HTTP_EXEC_MEM_LIMIT)));
-        } catch (const std::invalid_argument& e) {
-            return Status::InvalidArgument("Invalid mem limit format, {}", e.what());
-        }
-    }
-    if (ctx->timeout_second != -1) {
-        request.__set_timeout(ctx->timeout_second);
-    }
-    request.__set_thrift_rpc_timeout_ms(config::thrift_rpc_timeout_ms);
-    TNetworkAddress master_addr = _exec_env->master_info()->network_address;
-    int64_t stream_load_put_start_time = MonotonicNanos();
-    RETURN_IF_ERROR(ThriftRpcHelper::rpc<FrontendServiceClient>(
-            master_addr.hostname, master_addr.port,
-            [&request, ctx](FrontendServiceConnection& client) {
-                client->streamLoadPut(ctx->put_result, request);
-            }));
-    ctx->stream_load_put_cost_nanos = MonotonicNanos() - stream_load_put_start_time;
     return Status::OK();
 }
 
@@ -281,8 +251,9 @@ void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
         auto remove_bytes = evbuffer_remove(evbuf, bb->ptr, bb->capacity);
         bb->pos = remove_bytes;
         bb->flip();
+        std::cout << "Data in bb: " << std::string(bb->ptr, remove_bytes) << std::endl;
         auto st = ctx->body_sink->append(bb);
-//        std::cout << "Data in bb: " << std::string(bb->ptr, remove_bytes) << std::endl;
+        ctx->scheme_body_sink->append(bb);
         if (!st.ok()) {
             LOG(WARNING) << "append body content failed. errmsg=" << st << ", " << ctx->brief();
             ctx->status = st;
@@ -290,6 +261,7 @@ void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
         }
         ctx->receive_bytes += remove_bytes;
     }
+    ctx->scheme_body_sink->finish();
     ctx->read_data_cost_nanos += (MonotonicNanos() - start_read_data_time);
 }
 
@@ -317,10 +289,17 @@ Status StreamLoadWithSqlAction::_process_put(HttpRequest* http_req,
     request.tbl = ctx->table;
     request.txnId = ctx->txn_id;
     request.formatType = ctx->format;
+    request.__set_load_sql(http_req->header(HTTP_SQL));
     request.__set_compress_type(ctx->compress_type);
     request.__set_header_type(ctx->header_type);
     request.__set_loadId(ctx->id.to_thrift());
     request.fileType = TFileType::FILE_STREAM;
+    request.__set_label(ctx->label);
+    if (_exec_env->master_info()->__isset.backend_id) {
+        request.__set_backend_id(_exec_env->master_info()->backend_id);
+    } else {
+        LOG(WARNING) << "_exec_env->master_info not set backend_id";
+    }
 
     // plan this load
     TNetworkAddress master_addr = _exec_env->master_info()->network_address;

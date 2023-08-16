@@ -373,34 +373,42 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         }
 
         TNetworkAddress address = new TNetworkAddress(be.getHost(), be.getBrpcPort());
-        try {
-            PFetchTableSchemaRequest request = getFetchTableStructureRequest();
-            Future<InternalService.PFetchTableSchemaResult> future = BackendServiceProxy.getInstance()
-                    .fetchTableStructureAsync(address, request);
+//        try {
+            // TODO 先注释掉这里，将 column 的列信息写死
+//            PFetchTableSchemaRequest request = null;
+//            PFetchTableSchemaRequest request = getFetchTableStructureRequest();
+//            Future<InternalService.PFetchTableSchemaResult> future = BackendServiceProxy.getInstance()
+//                    .fetchTableStructureAsync(address, request);
+//
+//            InternalService.PFetchTableSchemaResult result = null;
+//            InternalService.PFetchTableSchemaResult result = future.get();
+//            TStatusCode code = TStatusCode.findByValue(result.getStatus().getStatusCode());
+//            String errMsg;
+//            if (code != TStatusCode.OK) {
+//                if (!result.getStatus().getErrorMsgsList().isEmpty()) {
+//                    errMsg = result.getStatus().getErrorMsgsList().get(0);
+//                } else {
+//                    errMsg = "fetchTableStructureAsync failed. backend address: "
+//                            + address.getHostname() + ":" + address.getPort();
+//                }
+//                throw new AnalysisException(errMsg);
+//            }
 
-            InternalService.PFetchTableSchemaResult result = future.get();
-            TStatusCode code = TStatusCode.findByValue(result.getStatus().getStatusCode());
-            String errMsg;
-            if (code != TStatusCode.OK) {
-                if (!result.getStatus().getErrorMsgsList().isEmpty()) {
-                    errMsg = result.getStatus().getErrorMsgsList().get(0);
-                } else {
-                    errMsg = "fetchTableStructureAsync failed. backend address: "
-                            + address.getHostname() + ":" + address.getPort();
-                }
-                throw new AnalysisException(errMsg);
-            }
-
-            fillColumns(result);
-        } catch (RpcException e) {
-            throw new AnalysisException("fetchTableStructureResult rpc exception", e);
-        } catch (InterruptedException e) {
-            throw new AnalysisException("fetchTableStructureResult interrupted exception", e);
-        } catch (ExecutionException e) {
-            throw new AnalysisException("fetchTableStructureResult exception", e);
-        } catch (TException e) {
-            throw new AnalysisException("getFetchTableStructureRequest exception", e);
-        }
+//            fillColumns(result);
+//        }
+//        catch (RpcException e) {
+//            throw new AnalysisException("fetchTableStructureResult rpc exception", e);
+//        }
+//        catch (InterruptedException e) {
+//            throw new AnalysisException("fetchTableStructureResult interrupted exception", e);
+//        } catch (ExecutionException e) {
+//            throw new AnalysisException("fetchTableStructureResult exception", e);
+//        }
+//        catch (TException e) {
+//            throw new AnalysisException("getFetchTableStructureRequest exception", e);
+//        }
+        InternalService.PFetchTableSchemaResult result = null;
+        fillColumns(result);
         System.out.println("columns is : " + columns.toString());
         return columns;
     }
@@ -463,15 +471,17 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
 
     private void fillColumns(InternalService.PFetchTableSchemaResult result)
             throws AnalysisException {
-        if (result.getColumnNums() == 0) {
-            throw new AnalysisException("The amount of column is 0");
-        }
+//        if (result.getColumnNums() == 0) {
+//            throw new AnalysisException("The amount of column is 0");
+//        }
         // add fetched file columns
-        for (int idx = 0; idx < result.getColumnNums(); ++idx) {
-            PTypeDesc type = result.getColumnTypes(idx);
-            String colName = result.getColumnNames(idx);
-            columns.add(new Column(colName, getColumnType(type.getTypesList(), 0).key(), true));
-        }
+//        for (int idx = 0; idx < result.getColumnNums(); ++idx) {
+//            PTypeDesc type = result.getColumnTypes(idx);
+//            String colName = result.getColumnNames(idx);
+//            columns.add(new Column(colName, getColumnType(type.getTypesList(), 0).key(), true));
+//        }
+        columns.add(new Column("c1", ScalarType.createStringType(), true));
+        columns.add(new Column("c2", ScalarType.createStringType(), true));
         // add path columns
         // HACK(tsy): path columns are all treated as STRING type now, after BE supports reading all columns
         //  types by all format readers from file meta, maybe reading path columns types from BE then.

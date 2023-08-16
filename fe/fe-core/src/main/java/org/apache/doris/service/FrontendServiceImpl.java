@@ -1762,8 +1762,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         ctx.setQualifiedUser(UserIdentity.ROOT.getQualifiedUser());
         ctx.setThreadLocalInfo();
         ctx.setBackendId(request.getBackendId());
-        StreamLoadTask streamLoadTask = StreamLoadTask.fromTStreamLoadPutRequest(request);
-//        ctx.setStreamLoadInfo(streamLoadTask);
         SqlScanner input = new SqlScanner(new StringReader(loadSql), ctx.getSessionVariable().getSqlMode());
         SqlParser parser = new SqlParser(input);
         try {
@@ -1780,6 +1778,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             coord.setLoadMemLimit(request.getExecMemLimit());
             coord.setQueryType(TQueryType.LOAD);
             QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
+            System.out.println("开始执行 sql...");
             coord.exec();
         } catch (UserException e) {
             LOG.warn("exec sql error {}", e);

@@ -130,16 +130,16 @@ public class TVFScanNode extends FileQueryScanNode {
     public List<Split> getSplits() throws UserException {
         List<Split> splits = Lists.newArrayList();
         List<TBrokerFileStatus> fileStatuses = tableValuedFunction.getFileStatuses();
-//        for (TBrokerFileStatus fileStatus : fileStatuses) {
-//            Path path = new Path(fileStatus.getPath());
-//            try {
-//                splits.addAll(splitFile(path, fileStatus.getBlockSize(), null, fileStatus.getSize(),
-//                        fileStatus.getModificationTime(), fileStatus.isSplitable, null));
-//            } catch (IOException e) {
-//                LOG.warn("get file split failed for TVF: {}", path, e);
-//                throw new UserException(e);
-//            }
-//        }
+        for (TBrokerFileStatus fileStatus : fileStatuses) {
+            Path path = new Path(fileStatus.getPath());
+            try {
+                splits.addAll(splitFile(path, fileStatus.getBlockSize(), null, fileStatus.getSize(),
+                        fileStatus.getModificationTime(), fileStatus.isSplitable, null));
+            } catch (IOException e) {
+                LOG.warn("get file split failed for TVF: {}", path, e);
+                throw new UserException(e);
+            }
+        }
         return splits;
     }
 }
