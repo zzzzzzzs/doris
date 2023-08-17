@@ -98,6 +98,9 @@ Status LocalFileReader::read_at_impl(size_t offset, Slice result, size_t* bytes_
             return Status::IOError("cannot read from {}: unexpected EOF", _path.native());
         }
         if (res > 0) {
+            if(res == 26) {
+                std::cout << "LocalFileReader res is :" << result.to_string() << std::endl;
+            }
             to += res;
             offset += res;
             bytes_req -= res;

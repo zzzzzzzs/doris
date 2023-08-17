@@ -247,6 +247,7 @@ Status PlanFragmentExecutor::prepare(const TExecPlanFragmentParams& request,
 }
 
 Status PlanFragmentExecutor::open() {
+    std::cout << "PlanFragmentExecutor::open() ..." << std::endl;
     int64_t mem_limit = _runtime_state->query_mem_tracker()->limit();
     LOG_INFO("PlanFragmentExecutor::open")
             .tag("query_id", _query_id)
@@ -265,6 +266,7 @@ Status PlanFragmentExecutor::open() {
         });
         // make sure the thread started up, otherwise report_profile() might get into a race
         // with stop_report_thread()
+        std::cout << "PlanFragmentExecutor::open() waiting..." << std::endl;
         _report_thread_started_cv.wait(l);
     }
     Status status = Status::OK();
@@ -302,6 +304,7 @@ Status PlanFragmentExecutor::open() {
 }
 
 Status PlanFragmentExecutor::open_vectorized_internal() {
+    std::cout << "PlanFragmentExecutor::open_vectorized_internal ..." << std::endl;
     SCOPED_TIMER(profile()->total_time_counter());
     {
         SCOPED_CPU_TIMER(_fragment_cpu_timer);
@@ -315,6 +318,7 @@ Status PlanFragmentExecutor::open_vectorized_internal() {
         bool eos = false;
 
         while (!eos) {
+            std::cout << "read block..." << std::endl;
             RETURN_IF_CANCELLED(_runtime_state);
             RETURN_IF_ERROR(get_vectorized_internal(&block, &eos));
 
@@ -349,6 +353,7 @@ Status PlanFragmentExecutor::open_vectorized_internal() {
 }
 
 Status PlanFragmentExecutor::get_vectorized_internal(::doris::vectorized::Block* block, bool* eos) {
+    std::cout << "PlanFragmentExecutor::get_vectorized_internal ..." << std::endl;
     while (!_done) {
         block->clear_column_data(_plan->row_desc().num_materialized_slots());
         RETURN_IF_ERROR(_plan->get_next_after_projects(

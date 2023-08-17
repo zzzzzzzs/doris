@@ -49,6 +49,7 @@ Status VScanner::prepare(RuntimeState* state, const VExprContextSPtrs& conjuncts
 }
 
 Status VScanner::get_block(RuntimeState* state, Block* block, bool* eof) {
+    std::cout << "VScanner::get_block func..." << std::endl;
     // only empty block should be here
     DCHECK(block->rows() == 0);
     SCOPED_RAW_TIMER(&_per_scanner_timer);

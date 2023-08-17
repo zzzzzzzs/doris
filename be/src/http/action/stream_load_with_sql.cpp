@@ -138,9 +138,14 @@ void StreamLoadWithSqlAction::handle(HttpRequest* req) {
 
 Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx) {
     std::cout << "_handle func..." << std::endl;
-    // wait stream load finish
+    if (ctx->body_bytes > 0 && ctx->receive_bytes != ctx->body_bytes) {
+        LOG(WARNING) << "recevie body don't equal with body bytes, body_bytes=" << ctx->body_bytes
+                     << ", receive_bytes=" << ctx->receive_bytes << ", id=" << ctx->id;
+        return Status::InternalError("receive body don't equal with body bytes");
+    }
     RETURN_IF_ERROR(ctx->body_sink->finish());
     std::cout << "wait stream load finish..." << std::endl;
+    // wait stream load finish
     // RETURN_IF_ERROR(ctx->future.get());
     // If put file success we need commit this load
     int64_t commit_and_publish_start_time = MonotonicNanos();

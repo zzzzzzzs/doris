@@ -245,7 +245,9 @@ Status FragmentExecState::prepare(const TExecPlanFragmentParams& params) {
 }
 
 Status FragmentExecState::execute() {
+    std::cout << "FragmentExecState::execute() func ..." << std::endl;
     if (_need_wait_execution_trigger) {
+        std::cout << "_need_wait_execution_trigger ..." << std::endl;
         // if _need_wait_execution_trigger is true, which means this instance
         // is prepared but need to wait for the signal to do the rest execution.
         if (!_query_ctx->wait_for_start()) {
@@ -259,6 +261,7 @@ Status FragmentExecState::execute() {
 #endif
     int64_t duration_ns = 0;
     {
+        std::cout << "can executor open ..." << std::endl;
         SCOPED_RAW_TIMER(&duration_ns);
         opentelemetry::trace::Tracer::GetCurrentSpan()->AddEvent("start executing Fragment");
         Status st = _executor.open();
@@ -519,6 +522,7 @@ static void empty_function(RuntimeState*, Status*) {}
 
 void FragmentMgr::_exec_actual(std::shared_ptr<FragmentExecState> exec_state,
                                const FinishCallback& cb) {
+    std::cout << "_exec_actual func ..." << std::endl;    
     std::string func_name {"PlanFragmentExecutor::_exec_actual"};
 #ifndef BE_TEST
     SCOPED_ATTACH_TASK(exec_state->executor()->runtime_state());
@@ -769,7 +773,7 @@ Status FragmentMgr::_get_query_ctx(const Params& params, TUniqueId query_id, boo
 
 Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params,
                                        const FinishCallback& cb) {
-    std::cout << "yes func ..." << std::endl;
+    std::cout << "exec_plan_fragment two params func ..." << std::endl;
 
     auto tracer = telemetry::is_current_span_valid() ? telemetry::get_tracer("tracer")
                                                      : telemetry::get_noop_tracer();

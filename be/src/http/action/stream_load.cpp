@@ -80,6 +80,7 @@ TStreamLoadPutResult k_stream_load_put_result;
 #endif
 
 StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) : _exec_env(exec_env) {
+    std::cout << "StreamLoadAction func..." << std::endl;
     _stream_load_entity =
             DorisMetrics::instance()->metric_registry()->register_entity("stream_load");
     INT_COUNTER_METRIC_REGISTER(_stream_load_entity, streaming_load_requests_total);
@@ -88,10 +89,12 @@ StreamLoadAction::StreamLoadAction(ExecEnv* exec_env) : _exec_env(exec_env) {
 }
 
 StreamLoadAction::~StreamLoadAction() {
+    std::cout << "~StreamLoadAction func..." << std::endl;
     DorisMetrics::instance()->metric_registry()->deregister_entity(_stream_load_entity);
 }
 
 void StreamLoadAction::handle(HttpRequest* req) {
+    std::cout << "handle func..." << std::endl;
     std::shared_ptr<StreamLoadContext> ctx =
             std::static_pointer_cast<StreamLoadContext>(req->handler_ctx());
     if (ctx == nullptr) {
@@ -135,6 +138,7 @@ void StreamLoadAction::handle(HttpRequest* req) {
 }
 
 Status StreamLoadAction::_handle(std::shared_ptr<StreamLoadContext> ctx) {
+    std::cout << "_handle func..." << std::endl;
     if (ctx->body_bytes > 0 && ctx->receive_bytes != ctx->body_bytes) {
         LOG(WARNING) << "recevie body don't equal with body bytes, body_bytes=" << ctx->body_bytes
                      << ", receive_bytes=" << ctx->receive_bytes << ", id=" << ctx->id;
@@ -167,6 +171,7 @@ Status StreamLoadAction::_handle(std::shared_ptr<StreamLoadContext> ctx) {
 }
 
 int StreamLoadAction::on_header(HttpRequest* req) {
+    std::cout << "on_header func..." << std::endl;
     streaming_load_current_processing->increment(1);
 
     std::shared_ptr<StreamLoadContext> ctx = std::make_shared<StreamLoadContext>(_exec_env);
@@ -214,6 +219,7 @@ int StreamLoadAction::on_header(HttpRequest* req) {
 }
 
 Status StreamLoadAction::_on_header(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx) {
+    std::cout << "_on_header func..." << std::endl;
     // auth information
     if (!parse_basic_auth(*http_req, &ctx->auth)) {
         LOG(WARNING) << "parse basic authorization failed." << ctx->brief();
@@ -292,6 +298,7 @@ Status StreamLoadAction::_on_header(HttpRequest* http_req, std::shared_ptr<Strea
 }
 
 void StreamLoadAction::on_chunk_data(HttpRequest* req) {
+    std::cout << "on_chunk_data func..." << std::endl;
     std::shared_ptr<StreamLoadContext> ctx =
             std::static_pointer_cast<StreamLoadContext>(req->handler_ctx());
     if (ctx == nullptr || !ctx->status.ok()) {
@@ -333,6 +340,7 @@ void StreamLoadAction::free_handler_ctx(std::shared_ptr<void> param) {
 
 Status StreamLoadAction::_process_put(HttpRequest* http_req,
                                       std::shared_ptr<StreamLoadContext> ctx) {
+    std::cout << "_process_put func..." << std::endl;
     // Now we use stream
     ctx->use_streaming = LoadUtil::is_format_support_streaming(ctx->format);
 
@@ -575,6 +583,7 @@ Status StreamLoadAction::_process_put(HttpRequest* http_req,
 }
 
 Status StreamLoadAction::_data_saved_path(HttpRequest* req, std::string* file_path) {
+    std::cout << "_data_saved_path func..." << std::endl;
     std::string prefix;
     RETURN_IF_ERROR(_exec_env->load_path_mgr()->allocate_dir(req->param(HTTP_DB_KEY), "", &prefix));
     timeval tv;
@@ -592,6 +601,7 @@ Status StreamLoadAction::_data_saved_path(HttpRequest* req, std::string* file_pa
 
 void StreamLoadAction::_save_stream_load_record(std::shared_ptr<StreamLoadContext> ctx,
                                                 const std::string& str) {
+    std::cout << "_save_stream_load_record func..." << std::endl;
     auto stream_load_recorder = StorageEngine::instance()->get_stream_load_recorder();
     if (stream_load_recorder != nullptr) {
         std::string key =

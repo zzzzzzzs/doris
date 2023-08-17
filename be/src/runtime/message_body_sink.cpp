@@ -35,6 +35,7 @@ MessageBodyFileSink::~MessageBodyFileSink() {
 }
 
 Status MessageBodyFileSink::open() {
+    std::cout << "MessageBodyFileSink::open() func ..." << std::endl;
     _fd = ::open(_path.data(), O_RDWR | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP);
     if (_fd < 0) {
         char errmsg[64];

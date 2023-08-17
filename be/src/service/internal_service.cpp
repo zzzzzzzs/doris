@@ -286,6 +286,7 @@ void PInternalServiceImpl::exec_plan_fragment(google::protobuf::RpcController* c
                                               PExecPlanFragmentResult* response,
                                               google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, response, done]() {
+        std::cout << "exec_plan_fragment func..." << std::endl;
         _exec_plan_fragment_in_pthread(controller, request, response, done);
     });
     if (!ret) {
@@ -296,6 +297,7 @@ void PInternalServiceImpl::exec_plan_fragment(google::protobuf::RpcController* c
 void PInternalServiceImpl::_exec_plan_fragment_in_pthread(
         google::protobuf::RpcController* controller, const PExecPlanFragmentRequest* request,
         PExecPlanFragmentResult* response, google::protobuf::Closure* done) {
+    std::cout << "_exec_plan_fragment_in_pthread func..." << std::endl;
     auto span = telemetry::start_rpc_server_span("exec_plan_fragment", controller);
     auto scope = OpentelemetryScope {span};
     brpc::ClosureGuard closure_guard(done);
@@ -322,6 +324,7 @@ void PInternalServiceImpl::exec_plan_fragment_prepare(google::protobuf::RpcContr
                                                       PExecPlanFragmentResult* response,
                                                       google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, response, done]() {
+        std::cout << "exec_plan_fragment_prepare fun..." << std::endl;
         _exec_plan_fragment_in_pthread(controller, request, response, done);
     });
     if (!ret) {
@@ -334,6 +337,7 @@ void PInternalServiceImpl::exec_plan_fragment_start(google::protobuf::RpcControl
                                                     PExecPlanFragmentResult* result,
                                                     google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, result, done]() {
+        std::cout << "exec_plan_fragment_start fun..." << std::endl;
         auto span = telemetry::start_rpc_server_span("exec_plan_fragment_start", controller);
         auto scope = OpentelemetryScope {span};
         brpc::ClosureGuard closure_guard(done);
@@ -433,6 +437,7 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
                                                       bool compact) {
     // Sometimes the BE do not receive the first heartbeat message and it receives request from FE
     // If BE execute this fragment, it will core when it wants to get some property from master info.
+    std::cout << "_exec_plan_fragment_impl func..." << std::endl;
     if (ExecEnv::GetInstance()->master_info() == nullptr) {
         return Status::InternalError(
                 "Have not receive the first heartbeat message from master, not ready to provide "
@@ -456,7 +461,7 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TExecPlanFragmentParams& params : t_request.paramsList) {
-            std::cout << "_exec_plan_fragment_impl func ..." << std::endl;
+            std::cout << "start exec_plan_fragment run func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
