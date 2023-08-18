@@ -98,13 +98,9 @@ import org.apache.doris.tablefunction.MetadataGenerator;
 import org.apache.doris.task.LoadEtlTask;
 import org.apache.doris.task.StreamLoadTask;
 import org.apache.doris.thrift.*;
-import org.apache.doris.transaction.DatabaseTransactionMgr;
-import org.apache.doris.transaction.TabletCommitInfo;
-import org.apache.doris.transaction.TransactionState;
+import org.apache.doris.transaction.*;
 import org.apache.doris.transaction.TransactionState.TxnCoordinator;
 import org.apache.doris.transaction.TransactionState.TxnSourceType;
-import org.apache.doris.transaction.TransactionStatus;
-import org.apache.doris.transaction.TxnCommitAttachment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -1752,6 +1748,20 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         }
         request.setFileType(TFileType.FILE_STREAM);
         ConnectContext ctx = new ConnectContext();
+        TTxnParams txnParams = new TTxnParams();
+        txnParams.setNeedTxn(true).setThriftRpcTimeoutMs(5000).setTxnId(request.getTxnId()).setDb("test").setTbl("t1");
+        if (ctx.getSessionVariable().getEnableInsertStrict()) {
+            txnParams.setMaxFilterRatio(0);
+        } else {
+            txnParams.setMaxFilterRatio(1.0);
+        }
+        if (ctx.getTxnEntry() == null) {
+            ctx.setTxnEntry(new TransactionEntry());
+        }
+        ctx.getTxnEntry().setTxnConf(txnParams);
+        ctx.getState().reset();
+        ctx.setStartTime();
+        ctx.initTracer("trace");
         if (Strings.isNullOrEmpty(request.getToken())) {
             checkPasswordAndPrivs(cluster, request.getUser(), request.getPasswd(), request.getDb(), request.getTbl(),
                 request.getUserIp(), PrivPredicate.LOAD);
@@ -1783,14 +1793,14 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             ctx.setExecutor(executor);
             TQueryOptions tQueryOptions = ctx.getSessionVariable().toThrift();
             executor.analyze(tQueryOptions);
-            executor.execute();
-//            Analyzer analyzer = new Analyzer(ctx.getEnv(), ctx);
-//            Coordinator coord = new Coordinator(ctx, analyzer, executor.planner());
-//            coord.setLoadMemLimit(request.getExecMemLimit());
-//            coord.setQueryType(TQueryType.LOAD);
-//            QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
-//            System.out.println("开始执行 sql...");
-//            coord.exec();
+//            executor.execute();
+            Analyzer analyzer = new Analyzer(ctx.getEnv(), ctx);
+            Coordinator coord = new Coordinator(ctx, analyzer, executor.planner());
+            coord.setLoadMemLimit(request.getExecMemLimit());
+            coord.setQueryType(TQueryType.LOAD);
+            QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
+            System.out.println("开始执行 sql...");
+            coord.exec();
         } catch (UserException e) {
             LOG.warn("exec sql error {}", e);
             throw new UserException("exec sql error", e);

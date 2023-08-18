@@ -109,7 +109,9 @@
 #include "vec/exec/vexchange_node.h"
 #include "vec/exec/vunion_node.h"
 #include "vec/runtime/vdata_stream_mgr.h"
-
+#define DEBUG_INFO(format, ...) \
+    printf("File:%s, Line:%d, Function:%s, " format "\n", \
+    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
 namespace doris::pipeline {
 
 PipelineFragmentContext::PipelineFragmentContext(
@@ -681,6 +683,7 @@ Status PipelineFragmentContext::_build_operators_for_set_operation_node(ExecNode
 }
 
 Status PipelineFragmentContext::submit() {
+    DEBUG_INFO("%s", "PipelineFragmentContext::submit");
     if (_submitted) {
         return Status::InternalError("submitted");
     }

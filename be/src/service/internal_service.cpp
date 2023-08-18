@@ -461,7 +461,7 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TExecPlanFragmentParams& params : t_request.paramsList) {
-            std::cout << "start exec_plan_fragment run func ..." << std::endl;
+            std::cout << "start TExecPlanFragmentParamsList VERSION_2 func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
@@ -474,6 +474,7 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TPipelineFragmentParams& params : t_request.params_list) {
+            std::cout << "start TPipelineFragmentParamsList VERSION_3 func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
@@ -908,6 +909,7 @@ void PInternalServiceImpl::apply_filterv2(::google::protobuf::RpcController* con
 void PInternalServiceImpl::send_data(google::protobuf::RpcController* controller,
                                      const PSendDataRequest* request, PSendDataResult* response,
                                      google::protobuf::Closure* done) {
+    std::cout << "PInternalServiceImpl::send_data..." << std::endl;
     bool ret = _heavy_work_pool.try_offer([this, request, response, done]() {
         brpc::ClosureGuard closure_guard(done);
         TUniqueId load_id;
