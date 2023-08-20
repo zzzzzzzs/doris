@@ -68,6 +68,10 @@
 #include "vec/exec/vexchange_node.h"
 #include "vec/runtime/vdata_stream_mgr.h"
 
+#define DEBUG_INFO(format, ...) \
+    printf("File:%s, Line:%d, Function:%s, " format "\n", \
+    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
+
 namespace doris {
 using namespace ErrorCode;
 
@@ -102,6 +106,7 @@ PlanFragmentExecutor::~PlanFragmentExecutor() {
 
 Status PlanFragmentExecutor::prepare(const TExecPlanFragmentParams& request,
                                      QueryContext* query_ctx) {
+    DEBUG_INFO("%s", "PlanFragmentExecutor::prepare");
     OpentelemetryTracer tracer = telemetry::get_noop_tracer();
     if (opentelemetry::trace::Tracer::GetCurrentSpan()->GetContext().IsValid()) {
         tracer = telemetry::get_tracer(print_id(_query_id));

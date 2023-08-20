@@ -146,8 +146,11 @@ Status StreamLoadWithSqlAction::_handle(HttpRequest* http_req, std::shared_ptr<S
     RETURN_IF_ERROR(ctx->body_sink->finish());
     std::cout << "wait stream load finish..." << std::endl;
     // wait stream load finish
-    // RETURN_IF_ERROR(ctx->future.get());
     // If put file success we need commit this load
+
+//    _process_put(http_req, ctx);
+     RETURN_IF_ERROR(ctx->future.get());
+
     int64_t commit_and_publish_start_time = MonotonicNanos();
     RETURN_IF_ERROR(_exec_env->stream_load_executor()->commit_txn(ctx.get()));
     ctx->commit_and_publish_txn_cost_nanos = MonotonicNanos() - commit_and_publish_start_time;
@@ -164,6 +167,8 @@ int StreamLoadWithSqlAction::on_header(HttpRequest* req) {
 
     ctx->load_type = TLoadType::MANUL_LOAD;
     ctx->load_src_type = TLoadSourceType::RAW;
+
+    ctx->use_streaming = true;
 
     ctx->label = req->header(HTTP_LABEL_KEY);
     if (ctx->label.empty()) {
@@ -231,12 +236,13 @@ Status StreamLoadWithSqlAction::_on_header(HttpRequest* http_req,
     RETURN_IF_ERROR(_exec_env->new_load_stream_mgr()->put(ctx->id, ctx));
 
     // begin transaction
-    int64_t begin_txn_start_time = MonotonicNanos();
-    RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx.get()));
-    ctx->begin_txn_cost_nanos = MonotonicNanos() - begin_txn_start_time;
+//    int64_t begin_txn_start_time = MonotonicNanos();
+//    RETURN_IF_ERROR(_exec_env->stream_load_executor()->begin_txn(ctx.get()));
+//    ctx->begin_txn_cost_nanos = MonotonicNanos() - begin_txn_start_time;
 
     // process put file
     return _process_put(http_req, ctx);
+//        return Status::OK();
 }
 
 void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
@@ -292,7 +298,7 @@ Status StreamLoadWithSqlAction::_process_put(HttpRequest* http_req,
     set_request_auth(&request, ctx->auth);
     request.db = ctx->db;
     request.tbl = ctx->table;
-    request.txnId = ctx->txn_id;
+//    request.txnId = ctx->txn_id;
     request.formatType = ctx->format;
     request.__set_load_sql(http_req->header(HTTP_SQL));
     request.__set_compress_type(ctx->compress_type);
@@ -320,7 +326,8 @@ Status StreamLoadWithSqlAction::_process_put(HttpRequest* http_req,
         LOG(WARNING) << "plan streaming load failed. errmsg=" << plan_status << ctx->brief();
         return plan_status;
     }
-    return Status::OK();
+    ctx->txn_id = ctx->put_result.params.txn_conf.txn_id;
+    return _exec_env->stream_load_executor()->execute_plan_fragment(ctx);
 }
 
 Status StreamLoadWithSqlAction::_data_saved_path(HttpRequest* req, std::string* file_path) {

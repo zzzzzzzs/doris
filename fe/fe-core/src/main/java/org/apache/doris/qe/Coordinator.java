@@ -558,6 +558,67 @@ public class Coordinator {
         }
     }
 
+    public TExecPlanFragmentParams getPlan() throws Exception{
+        if (LOG.isDebugEnabled() && !scanNodes.isEmpty()) {
+            LOG.debug("debug: in Coordinator::exec. query id: {}, planNode: {}",
+                DebugUtil.printId(queryId), scanNodes.get(0).treeToThrift());
+        }
+
+        if (LOG.isDebugEnabled() && !fragments.isEmpty()) {
+            LOG.debug("debug: in Coordinator::exec. query id: {}, fragment: {}",
+                DebugUtil.printId(queryId), fragments.get(0).toThrift());
+        }
+
+        // prepare information
+        prepare();
+        // compute Fragment Instance
+        computeScanRangeAssignment();
+
+        computeFragmentExecParams();
+
+        traceInstance();
+
+        QeProcessorImpl.INSTANCE.registerInstances(queryId, instanceIds.size());
+
+        // create result receiver
+        PlanFragmentId topId = fragments.get(0).getFragmentId();
+        FragmentExecParams topParams = fragmentExecParamsMap.get(topId);
+        DataSink topDataSink = topParams.fragment.getSink();
+        this.timeoutDeadline = System.currentTimeMillis() + queryOptions.getExecutionTimeout() * 1000L;
+        if (topDataSink instanceof ResultSink || topDataSink instanceof ResultFileSink) {
+            TNetworkAddress execBeAddr = topParams.instanceExecParams.get(0).host;
+            receiver = new ResultReceiver(queryId, topParams.instanceExecParams.get(0).instanceId,
+                addressToBackendID.get(execBeAddr), toBrpcHost(execBeAddr), this.timeoutDeadline);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("dispatch query job: {} to {}", DebugUtil.printId(queryId),
+                    topParams.instanceExecParams.get(0).host);
+            }
+
+            if (topDataSink instanceof ResultFileSink
+                && ((ResultFileSink) topDataSink).getStorageType() == StorageBackend.StorageType.BROKER) {
+                // set the broker address for OUTFILE sink
+                ResultFileSink topResultFileSink = (ResultFileSink) topDataSink;
+                FsBroker broker = Env.getCurrentEnv().getBrokerMgr()
+                    .getBroker(topResultFileSink.getBrokerName(), execBeAddr.getHostname());
+                topResultFileSink.setBrokerAddr(broker.host, broker.port);
+            }
+        } else {
+            // This is a load process.
+            this.queryOptions.setIsReportSuccess(true);
+            deltaUrls = Lists.newArrayList();
+            loadCounters = Maps.newHashMap();
+            List<Long> relatedBackendIds = Lists.newArrayList(addressToBackendID.values());
+            Env.getCurrentEnv().getLoadManager().initJobProgress(jobId, queryId, instanceIds,
+                relatedBackendIds);
+            Env.getCurrentEnv().getProgressManager().addTotalScanNums(String.valueOf(jobId), scanRangeNum);
+            LOG.info("dispatch load job: {} to {}", DebugUtil.printId(queryId), addressToBackendID.keySet());
+        }
+        executionProfile.markInstances(instanceIds);
+        List<TExecPlanFragmentParams> tExecPlanFragmentParams = ((FragmentExecParams) this.fragmentExecParamsMap.values().toArray()[0]).toThrift(0);
+        TExecPlanFragmentParams fragmentParams = tExecPlanFragmentParams.get(0);
+        return fragmentParams;
+    }
+
     // Initiate asynchronous execution of query. Returns as soon as all plan fragments
     // have started executing at their respective backends.
     // 'Request' must contain at least a coordinator plan fragment (ie, can't
@@ -2179,6 +2240,11 @@ public class Coordinator {
             // add scan range
             TScanRangeParams scanRangeParams = new TScanRangeParams();
             scanRangeParams.scan_range = scanRangeLocations.scan_range;
+            if (scanRangeParams.scan_range.ext_scan_range != null) {
+                scanRangeParams.scan_range.ext_scan_range.file_scan_range.ranges.get(0).setLoadId(this.getQueryId());
+//                scanRangeParams.scan_range.ext_scan_range.file_scan_range.params.getRequiredSlots().get(0).setSlotId(4);
+//                scanRangeParams.scan_range.ext_scan_range.file_scan_range.params.getRequiredSlots().get(1).setSlotId(5);
+            }
             // Volume is optional, so we need to set the value and the is-set bit
             scanRangeParams.setVolumeId(minLocation.volume_id);
             scanRangeParamsList.add(scanRangeParams);

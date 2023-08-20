@@ -337,7 +337,14 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         if (this.fileFormatType == TFileFormatType.FORMAT_CSV_PLAIN) {
             fileAttributes.setHeaderType(this.headerType);
             fileAttributes.setTrimDoubleQuotes(trimDoubleQuotes);
+            fileAttributes.setJsonRoot(jsonRoot);
+            fileAttributes.setJsonpaths(jsonPaths);
+            fileAttributes.setReadJsonByLine(readJsonByLine);
+            fileAttributes.setNumAsString(false);
+            fileAttributes.setReadByColumnDef(true);
             fileAttributes.setSkipLines(skipLines);
+            fileAttributes.setStripOuterArray(false);
+            fileAttributes.setFuzzyParse(true);
         } else if (this.fileFormatType == TFileFormatType.FORMAT_JSON) {
             fileAttributes.setJsonRoot(jsonRoot);
             fileAttributes.setJsonpaths(jsonPaths);

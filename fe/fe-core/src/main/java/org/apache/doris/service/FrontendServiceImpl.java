@@ -19,19 +19,9 @@ package org.apache.doris.service;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.doris.alter.SchemaChangeHandler;
-import org.apache.doris.analysis.AddColumnsClause;
-import org.apache.doris.analysis.Analyzer;
-import org.apache.doris.analysis.ColumnDef;
-import org.apache.doris.analysis.InsertStmt;
-import org.apache.doris.analysis.LabelName;
-import org.apache.doris.analysis.RestoreStmt;
-import org.apache.doris.analysis.SetType;
+import org.apache.doris.analysis.*;
 import org.apache.doris.analysis.SqlParser;
 import org.apache.doris.analysis.SqlScanner;
-import org.apache.doris.analysis.StatementBase;
-import org.apache.doris.analysis.TableName;
-import org.apache.doris.analysis.TypeDef;
-import org.apache.doris.analysis.UserIdentity;
 import org.apache.doris.backup.Snapshot;
 import org.apache.doris.catalog.AutoIncrementGenerator;
 import org.apache.doris.catalog.Column;
@@ -65,6 +55,7 @@ import org.apache.doris.common.Version;
 import org.apache.doris.common.annotation.LogException;
 import org.apache.doris.common.util.DebugUtil;
 import org.apache.doris.common.util.SqlParserUtils;
+import org.apache.doris.common.util.TimeUtils;
 import org.apache.doris.common.util.Util;
 import org.apache.doris.cooldown.CooldownDelete;
 import org.apache.doris.datasource.CatalogIf;
@@ -109,6 +100,7 @@ import com.google.common.collect.Maps;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.apache.parquet.format.LogicalTypes;
 import org.apache.thrift.TException;
 
 import java.io.StringReader;
@@ -137,6 +129,10 @@ public class FrontendServiceImpl implements FrontendService.Iface {
     // key is txn id,value is index of plan fragment instance, it's used by multi table request plan
     private ConcurrentHashMap<Long, Integer> multiTableFragmentInstanceIdIndexMap =
         new ConcurrentHashMap<>(64);
+
+    private TExecPlanFragmentParams planFra = null;
+    long txn_idi = -1;
+    TransactionState txnState = null;
 
     public FrontendServiceImpl(ExecuteEnv exeEnv) {
         masterImpl = new MasterImpl();
@@ -1596,6 +1592,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
 
     @Override
     public TStreamLoadPutResult streamLoadPut(TStreamLoadPutRequest request) {
+        planFra = null;
+        txnState = null;
+        txn_idi = -1;
         String clientAddr = getClientAddrAsString();
         LOG.debug("receive stream load put request: {}, backend: {}", request, clientAddr);
 
@@ -1604,8 +1603,14 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         result.setStatus(status);
         try {
             // TODO 这里是测试用的，不是最终的代码
+//            request.setLoadSql("insert into test.t1(c1, c2) select c1, c2 from stream(\"format\" = \"CSV\", \"column_separator\" = \",\")");
+            request.setBackendId(11018);
             if (!Strings.isNullOrEmpty(request.getLoadSql())) {
                 streamLoadPutWithSqlImpl(request);
+                result.setParams(planFra);
+                result.getParams().setTxnConf(new TTxnParams().setTxnId(txn_idi));
+//                result.getParams().getTxnConf().setTxnId(txn_idi);
+                return result;
             } else {
                 if (Config.enable_pipeline_load) {
                     result.setPipelineParams(pipelineStreamLoadPutImpl(request));
@@ -1746,34 +1751,34 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         if (Strings.isNullOrEmpty(cluster)) {
             cluster = SystemInfoService.DEFAULT_CLUSTER;
         }
-        request.setFileType(TFileType.FILE_STREAM);
+//        request.setFileType(TFileType.FILE_STREAM);
         ConnectContext ctx = new ConnectContext();
-        TTxnParams txnParams = new TTxnParams();
-        txnParams.setNeedTxn(true).setThriftRpcTimeoutMs(5000).setTxnId(request.getTxnId()).setDb("test").setTbl("t1");
-        if (ctx.getSessionVariable().getEnableInsertStrict()) {
-            txnParams.setMaxFilterRatio(0);
-        } else {
-            txnParams.setMaxFilterRatio(1.0);
-        }
-        if (ctx.getTxnEntry() == null) {
-            ctx.setTxnEntry(new TransactionEntry());
-        }
-        ctx.getTxnEntry().setTxnConf(txnParams);
-        ctx.getState().reset();
-        ctx.setStartTime();
-        ctx.initTracer("trace");
+//        TTxnParams txnParams = new TTxnParams();
+//        txnParams.setNeedTxn(true).setThriftRpcTimeoutMs(5000).setTxnId(request.getTxnId()).setDb("test").setTbl("t1");
+//        if (ctx.getSessionVariable().getEnableInsertStrict()) {
+//            txnParams.setMaxFilterRatio(0);
+//        } else {
+//            txnParams.setMaxFilterRatio(1.0);
+//        }
+//        if (ctx.getTxnEntry() == null) {
+//            ctx.setTxnEntry(new TransactionEntry());
+//        }
+//        ctx.getTxnEntry().setTxnConf(txnParams);
+//        ctx.getState().reset();
+//        ctx.setStartTime();
+//        ctx.initTracer("trace");
         if (Strings.isNullOrEmpty(request.getToken())) {
             checkPasswordAndPrivs(cluster, request.getUser(), request.getPasswd(), request.getDb(), request.getTbl(),
                 request.getUserIp(), PrivPredicate.LOAD);
         }
-        String sqlHash = DigestUtils.md5Hex(originStmt);
-        ctx.setSqlHash(sqlHash);
-        ctx.getAuditEventBuilder().reset();
-        ctx.getAuditEventBuilder()
-            .setTimestamp(System.currentTimeMillis())
-            .setClientIp(ctx.getMysqlChannel().getRemoteHostPortString())
-            .setUser(ClusterNamespace.getNameFromFullName(ctx.getQualifiedUser()))
-            .setSqlHash(ctx.getSqlHash());
+//        String sqlHash = DigestUtils.md5Hex(originStmt);
+//        ctx.setSqlHash(sqlHash);
+//        ctx.getAuditEventBuilder().reset();
+//        ctx.getAuditEventBuilder()
+//            .setTimestamp(System.currentTimeMillis())
+//            .setClientIp(ctx.getMysqlChannel().getRemoteHostPortString())
+//            .setUser(ClusterNamespace.getNameFromFullName(ctx.getQualifiedUser()))
+//            .setSqlHash(ctx.getSqlHash());
         ctx.setEnv(Env.getCurrentEnv());
         ctx.setLoadId(request.getLoadId());
         ctx.setQueryId(request.getLoadId());
@@ -1785,7 +1790,7 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         SqlScanner input = new SqlScanner(new StringReader(originStmt), ctx.getSessionVariable().getSqlMode());
         SqlParser parser = new SqlParser(input);
         try {
-            StatementBase parsedStmt = SqlParserUtils.getFirstStmt(parser);
+            NativeInsertStmt parsedStmt = (NativeInsertStmt) SqlParserUtils.getFirstStmt(parser);
             parsedStmt.setOrigStmt(new OriginStatement(originStmt, 0));
             parsedStmt.setUserInfo(ctx.getCurrentUserIdentity());
             StmtExecutor executor = new StmtExecutor(ctx, parsedStmt);
@@ -1800,7 +1805,27 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             coord.setQueryType(TQueryType.LOAD);
             QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
             System.out.println("开始执行 sql...");
-            coord.exec();
+//            coord.exec();
+
+            TExecPlanFragmentParams plan = coord.getPlan();
+            // add table indexes to transaction state
+            Env env = Env.getCurrentEnv();
+            String fullDbName = ClusterNamespace.getFullName(cluster, request.getDb());
+            Database db = env.getInternalCatalog().getDbNullable(fullDbName);
+            Table table = db.getTableOrMetaException(request.getTbl(), TableType.OLAP);
+
+            txn_idi = parsedStmt.getTransactionId();
+            txnState = Env.getCurrentGlobalTransactionMgr()
+                .getTransactionState(db.getId(), txn_idi);
+            if (txnState == null) {
+                throw new UserException("txn does not exist: " + txn_idi);
+            }
+            txnState.addTableIndexes((OlapTable) table);
+            plan.setTableName(table.getName());
+            plan.file_scan_params = null;
+            plan.getQueryGlobals().setTimeZone(TimeUtils.DEFAULT_TIME_ZONE);
+
+            planFra = plan;
         } catch (UserException e) {
             LOG.warn("exec sql error {}", e);
             throw new UserException("exec sql error", e);
@@ -1847,6 +1872,8 @@ public class FrontendServiceImpl implements FrontendService.Iface {
                 "get table read lock timeout, database=" + fullDbName + ",table=" + table.getName());
         }
         try {
+            request.setColumns("c1, c2");
+            request.setColumnSeparator(",");
             StreamLoadTask streamLoadTask = StreamLoadTask.fromTStreamLoadPutRequest(request);
             if (isMultiTableRequest) {
                 buildMultiTableStreamLoadTask(streamLoadTask, request.getTxnId());

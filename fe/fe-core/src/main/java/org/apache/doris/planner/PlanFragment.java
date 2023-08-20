@@ -298,7 +298,8 @@ public class PlanFragment extends TreeNode<PlanFragment> {
             result.setOutputSink(sink.toThrift());
         }
         if (dataPartitionForThrift == null) {
-            result.setPartition(dataPartition.toThrift());
+//            result.setPartition(dataPartition.toThrift());
+            result.setPartition(DataPartition.UNPARTITIONED.toThrift());
         } else {
             result.setPartition(dataPartitionForThrift.toThrift());
         }
