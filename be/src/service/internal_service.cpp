@@ -558,6 +558,33 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
         const TFileRangeDesc& range = file_scan_range.ranges.at(0);
         const TFileScanRangeParams& params = file_scan_range.params;
 
+        if (params.file_type == TFileType::FILE_STREAM) {
+
+            auto stream_load_ctx = _exec_env->new_load_stream_mgr()->get(load_id);
+
+            stream_load_ctx->schema_buffer->
+
+            std::vector<std::string> col_names;
+            std::vector<TypeDescriptor> col_types;
+            result->set_column_nums(2);
+            for (size_t i = 0; i < 2; ++i) {
+                col_names.emplace_back("c" + std::to_string(i + 1));
+            }
+            for (size_t i = 0; i < 2; ++i) {
+                col_types.emplace_back(TypeDescriptor::create_string_type());
+            }
+            result->set_column_nums(col_names.size());
+            for (size_t idx = 0; idx < col_names.size(); ++idx) {
+                result->add_column_names(col_names[idx]);
+            }
+            for (size_t idx = 0; idx < col_types.size(); ++idx) {
+                PTypeDesc* type_desc = result->add_column_types();
+                col_types[idx].to_protobuf(type_desc);
+            }
+            st.to_protobuf(result->mutable_status());
+            return;
+        }
+
         // make sure profile is desctructed after reader cause PrefetchBufferedReader
         // might asynchronouslly access the profile
         std::unique_ptr<RuntimeProfile> profile =

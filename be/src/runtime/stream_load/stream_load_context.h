@@ -176,6 +176,8 @@ public:
     std::shared_ptr<MessageBodySink> body_sink;
     std::shared_ptr<io::StreamLoadPipe> pipe;
 
+    ByteBufferPtr schema_buffer = ByteBuffer::allocate(128 * 1024);
+
     std::shared_ptr<MessageBodySink> scheme_body_sink;
     std::shared_ptr<io::StreamLoadPipe> scheme_pipe;
 

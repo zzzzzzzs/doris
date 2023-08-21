@@ -216,7 +216,7 @@ Status StreamLoadWithSqlAction::_on_header(HttpRequest* http_req,
 
 
     // check content length
-    ctx->body_bytes = 0;
+    ctx->body_bytes = 26;
     // size_t csv_max_body_bytes = config::streaming_load_max_mb * 1024 * 1024;
     // size_t json_max_body_bytes = config::streaming_load_json_max_mb * 1024 * 1024;
     // bool read_json_by_line = false;
@@ -241,8 +241,8 @@ Status StreamLoadWithSqlAction::_on_header(HttpRequest* http_req,
 //    ctx->begin_txn_cost_nanos = MonotonicNanos() - begin_txn_start_time;
 
     // process put file
-    return _process_put(http_req, ctx);
-//        return Status::OK();
+    // return _process_put(http_req, ctx);
+    return Status::OK();
 }
 
 void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
@@ -265,6 +265,7 @@ void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
         std::cout << "Data in bb: " << std::string(bb->ptr, remove_bytes) << std::endl;
         auto st = ctx->body_sink->append(bb);
         ctx->scheme_body_sink->append(bb);
+        ctx->schema_buffer->put_bytes(bb, remove_bytes);
         if (!st.ok()) {
             LOG(WARNING) << "append body content failed. errmsg=" << st << ", " << ctx->brief();
             ctx->status = st;
@@ -272,7 +273,13 @@ void StreamLoadWithSqlAction::on_chunk_data(HttpRequest* req) {
         }
         ctx->receive_bytes += remove_bytes;
     }
+
+    std::cout << "schema_buffer is :" << ctx->schema_buffer << std::endl;
+
     ctx->scheme_body_sink->finish();
+    _process_put(req, ctx);
+    // ctx->body_sink->finish();
+    // ctx->scheme_body_sink->finish();
     ctx->read_data_cost_nanos += (MonotonicNanos() - start_read_data_time);
 }
 

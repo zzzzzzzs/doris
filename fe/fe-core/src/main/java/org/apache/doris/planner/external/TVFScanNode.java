@@ -131,6 +131,9 @@ public class TVFScanNode extends FileQueryScanNode {
         List<Split> splits = Lists.newArrayList();
         List<TBrokerFileStatus> fileStatuses = tableValuedFunction.getFileStatuses();
         for (TBrokerFileStatus fileStatus : fileStatuses) {
+            if (fileStatus.getPath().equals("")) {
+                continue;
+            }
             Path path = new Path(fileStatus.getPath());
             try {
                 splits.addAll(splitFile(path, fileStatus.getBlockSize(), null, fileStatus.getSize(),

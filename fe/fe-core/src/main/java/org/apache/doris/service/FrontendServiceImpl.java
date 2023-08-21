@@ -1604,7 +1604,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         try {
             // TODO 这里是测试用的，不是最终的代码
 //            request.setLoadSql("insert into test.t1(c1, c2) select c1, c2 from stream(\"format\" = \"CSV\", \"column_separator\" = \",\")");
-            request.setBackendId(11018);
             if (!Strings.isNullOrEmpty(request.getLoadSql())) {
                 streamLoadPutWithSqlImpl(request);
                 result.setParams(planFra);
