@@ -190,7 +190,6 @@ void PipelineTask::set_task_queue(TaskQueue* task_queue) {
 }
 
 Status PipelineTask::execute(bool* eos) {
-    std::cout << "PipelineTask::execute func..." << std::endl;
     SCOPED_TIMER(_task_profile->total_time_counter());
     SCOPED_CPU_TIMER(_task_cpu_timer);
     SCOPED_TIMER(_exec_timer);

@@ -260,7 +260,6 @@ public class BackendServiceProxy {
     public Future<InternalService.PFetchTableSchemaResult> fetchTableStructureAsync(
             TNetworkAddress address, InternalService.PFetchTableSchemaRequest request) throws RpcException {
         try {
-            System.out.println("fetchTableStructure ...");
             final BackendServiceClient client = getProxy(address);
             return client.fetchTableStructureAsync(request);
         } catch (Throwable e) {

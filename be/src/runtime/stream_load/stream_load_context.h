@@ -39,6 +39,7 @@
 #include "runtime/stream_load/stream_load_executor.h"
 #include "util/time.h"
 #include "util/uid_util.h"
+#include "util/byte_buffer.h"
 
 namespace doris {
 namespace io {
@@ -178,8 +179,6 @@ public:
 
     ByteBufferPtr schema_buffer = ByteBuffer::allocate(128 * 1024);
 
-    std::shared_ptr<MessageBodySink> scheme_body_sink;
-    std::shared_ptr<io::StreamLoadPipe> scheme_pipe;
 
     TStreamLoadPutResult put_result;
     TStreamLoadMultiTablePutResult multi_table_put_result;

@@ -337,14 +337,7 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         if (this.fileFormatType == TFileFormatType.FORMAT_CSV_PLAIN) {
             fileAttributes.setHeaderType(this.headerType);
             fileAttributes.setTrimDoubleQuotes(trimDoubleQuotes);
-            fileAttributes.setJsonRoot(jsonRoot);
-            fileAttributes.setJsonpaths(jsonPaths);
-            fileAttributes.setReadJsonByLine(readJsonByLine);
-            fileAttributes.setNumAsString(false);
-            fileAttributes.setReadByColumnDef(true);
             fileAttributes.setSkipLines(skipLines);
-            fileAttributes.setStripOuterArray(false);
-            fileAttributes.setFuzzyParse(true);
         } else if (this.fileFormatType == TFileFormatType.FORMAT_JSON) {
             fileAttributes.setJsonRoot(jsonRoot);
             fileAttributes.setJsonpaths(jsonPaths);
@@ -380,7 +373,6 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         }
 
         TNetworkAddress address = new TNetworkAddress(be.getHost(), be.getBrpcPort());
-//             TODO 先注释掉这里，将 column 的列信息写死
         try {
             PFetchTableSchemaRequest request = getFetchTableStructureRequest();
             Future<InternalService.PFetchTableSchemaResult> future = BackendServiceProxy.getInstance()
@@ -412,25 +404,22 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         catch (TException e) {
             throw new AnalysisException("getFetchTableStructureRequest exception", e);
         }
-//        InternalService.PFetchTableSchemaResult result = null;
-//        fillColumns(result);
-        System.out.println("columns is : " + columns.toString());
         return columns;
     }
 
     protected Backend getBackend() {
+        ConnectContext ctx = ConnectContext.get();
+        // For the stream load task, we should obtain the be for processing the task
+        long backendId = ctx.getBackendId();
+        if (getTFileType() == TFileType.FILE_STREAM) {
+            Backend be = Env.getCurrentSystemInfo().getIdToBackend().get(backendId);
+            if (be.isAlive()) {
+                return be;
+            }
+        }
         for (Backend be : Env.getCurrentSystemInfo().getIdToBackend().values()) {
-            // TODO for stream load，这里判断有问题，先这样写
-            if (getTFileType() == TFileType.FILE_STREAM || getTFileType() == TFileType.FILE_LOCAL) {
-                ConnectContext ctx = ConnectContext.get();
-                long streamLoadBackendId = ctx.getBackendId();
-                if (be.getId() == streamLoadBackendId) {
-                    return be;
-                }
-            } else {
-                if (be.isAlive()) {
-                    return be;
-                }
+            if (be.isAlive()) {
+                return be;
             }
         }
         return null;
@@ -485,8 +474,6 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
             String colName = result.getColumnNames(idx);
             columns.add(new Column(colName, getColumnType(type.getTypesList(), 0).key(), true));
         }
-//        columns.add(new Column("c1", ScalarType.createStringType(), true));
-//        columns.add(new Column("c2", ScalarType.createStringType(), true));
         // add path columns
         // HACK(tsy): path columns are all treated as STRING type now, after BE supports reading all columns
         //  types by all format readers from file meta, maybe reading path columns types from BE then.

@@ -33,7 +33,6 @@ Status FileReader::read_at(size_t offset, Slice result, size_t* bytes_read,
     Status st = read_at_impl(offset, result, bytes_read, io_ctx);
 #else
     Status st;
-    std::cout << "FileReader::read_at func..." << std::endl;
     if (bthread_self() == 0) {
         st = read_at_impl(offset, result, bytes_read, io_ctx);
     } else {

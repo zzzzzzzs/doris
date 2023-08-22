@@ -239,7 +239,6 @@ Status NewPlainTextLineReader::read_line(const uint8_t** ptr, size_t* size, bool
                 {
                     SCOPED_TIMER(_read_timer);
                     Slice file_slice(file_buf, buffer_len);
-                    std::cout << "new_plain_text_line_reader func ..." << std::endl;
                     RETURN_IF_ERROR(
                             _file_reader->read_at(_current_offset, file_slice, &read_len, io_ctx));
                     _current_offset += read_len;

@@ -260,21 +260,14 @@ public abstract class FileQueryScanNode extends FileScanNode {
         boolean isCsvOrJson = Util.isCsvFormat(fileFormatType) || fileFormatType == TFileFormatType.FORMAT_JSON;
         if (isCsvOrJson) {
             params.setFileAttributes(getFileAttributes());
-            // TODO 这里需要使用 TFileType.FILE_STREAM 判断
-            if (inputSplits.isEmpty()) {
+            if (getLocationType() == TFileType.FILE_STREAM) {
                 params.setFileType(TFileType.FILE_STREAM);
                 params.setCompressType(TFileCompressType.PLAIN);
-
-                params.setSrcTupleId(2);
-
-                params.getRequiredSlots().get(0).setSlotId(4);
-                params.getRequiredSlots().get(1).setSlotId(5);
 
                 TScanRangeLocations curLocations = newLocations();
                 TFileRangeDesc rangeDesc = new TFileRangeDesc();
                 rangeDesc.setSize(-1);
                 rangeDesc.setFileSize(-1);
-                rangeDesc.setModificationTime(0);
                 curLocations.getScanRange().getExtScanRange().getFileScanRange().addToRanges(rangeDesc);
                 curLocations.getScanRange().getExtScanRange().getFileScanRange().setParams(params);
                 TScanRangeLocation location = new TScanRangeLocation();
@@ -291,7 +284,6 @@ public abstract class FileQueryScanNode extends FileScanNode {
         if (inputSplits.isEmpty()) {
             return;
         }
-
 
         Map<String, String> locationProperties = getLocationProperties();
         // for JNI, only need to set properties

@@ -88,10 +88,6 @@
 #include "vec/runtime/shared_hash_table_controller.h"
 #include "vec/runtime/vdatetime_value.h"
 
-#define DEBUG_INFO(format, ...) \
-    printf("File:%s, Line:%d, Function:%s, " format "\n", \
-    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);
-
 namespace doris {
 
 DEFINE_GAUGE_METRIC_PROTOTYPE_2ARG(plan_fragment_count, MetricUnit::NOUNIT);
@@ -249,9 +245,7 @@ Status FragmentExecState::prepare(const TExecPlanFragmentParams& params) {
 }
 
 Status FragmentExecState::execute() {
-    std::cout << "FragmentExecState::execute() func ..." << std::endl;
     if (_need_wait_execution_trigger) {
-        std::cout << "_need_wait_execution_trigger ..." << std::endl;
         // if _need_wait_execution_trigger is true, which means this instance
         // is prepared but need to wait for the signal to do the rest execution.
         if (!_query_ctx->wait_for_start()) {
@@ -265,7 +259,6 @@ Status FragmentExecState::execute() {
 #endif
     int64_t duration_ns = 0;
     {
-        std::cout << "can executor open ..." << std::endl;
         SCOPED_RAW_TIMER(&duration_ns);
         opentelemetry::trace::Tracer::GetCurrentSpan()->AddEvent("start executing Fragment");
         Status st = _executor.open();
@@ -526,7 +519,6 @@ static void empty_function(RuntimeState*, Status*) {}
 
 void FragmentMgr::_exec_actual(std::shared_ptr<FragmentExecState> exec_state,
                                const FinishCallback& cb) {
-    std::cout << "_exec_actual func ..." << std::endl;    
     std::string func_name {"PlanFragmentExecutor::_exec_actual"};
 #ifndef BE_TEST
     SCOPED_ATTACH_TASK(exec_state->executor()->runtime_state());
@@ -596,7 +588,6 @@ Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params) {
         RETURN_IF_ERROR(_exec_env->stream_load_executor()->execute_plan_fragment(stream_load_ctx));
         return Status::OK();
     } else {
-        std::cout << "TExecPlanFragmentParams exec_plan_fragment func ..." << std::endl;
         return exec_plan_fragment(params, empty_function);
     }
 }
@@ -633,7 +624,6 @@ Status FragmentMgr::exec_plan_fragment(const TPipelineFragmentParams& params) {
         RETURN_IF_ERROR(_exec_env->stream_load_executor()->execute_plan_fragment(stream_load_ctx));
         return Status::OK();
     } else {
-        std::cout << "FragmentMgr::exec_plan_fragment func..." << std::endl;
         return exec_plan_fragment(params, empty_function);
     }
 }
@@ -778,8 +768,6 @@ Status FragmentMgr::_get_query_ctx(const Params& params, TUniqueId query_id, boo
 
 Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params,
                                        const FinishCallback& cb) {
-    std::cout << "exec_plan_fragment two params func ..." << std::endl;
-
     auto tracer = telemetry::is_current_span_valid() ? telemetry::get_tracer("tracer")
                                                      : telemetry::get_noop_tracer();
     auto cur_span = opentelemetry::trace::Tracer::GetCurrentSpan();
@@ -861,7 +849,6 @@ Status FragmentMgr::exec_plan_fragment(const TExecPlanFragmentParams& params,
 
 Status FragmentMgr::exec_plan_fragment(const TPipelineFragmentParams& params,
                                        const FinishCallback& cb) {
-    DEBUG_INFO("%s", "FragmentMgr::exec_plan_fragment");
     auto tracer = telemetry::is_current_span_valid() ? telemetry::get_tracer("tracer")
                                                      : telemetry::get_noop_tracer();
     auto cur_span = opentelemetry::trace::Tracer::GetCurrentSpan();

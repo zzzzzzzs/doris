@@ -272,7 +272,6 @@ Status CsvReader::init_reader(bool is_load) {
 }
 
 Status CsvReader::get_next_block(Block* block, size_t* read_rows, bool* eof) {
-    std::cout << "CsvReader::get_next_block func ..." << std::endl;
     if (_line_reader_eof) {
         *eof = true;
         return Status::OK();

@@ -47,7 +47,6 @@ public:
 private:
     Status _on_header(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx);
     Status _handle(HttpRequest* req, std::shared_ptr<StreamLoadContext> ctx);
-    Status _data_saved_path(HttpRequest* req, std::string* file_path);
     Status _process_put(HttpRequest* http_req, std::shared_ptr<StreamLoadContext> ctx);
     void _save_stream_load_record(std::shared_ptr<StreamLoadContext> ctx, const std::string& str);
     void _read_buf_data(HttpRequest* req);

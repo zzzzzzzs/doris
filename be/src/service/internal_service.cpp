@@ -286,7 +286,6 @@ void PInternalServiceImpl::exec_plan_fragment(google::protobuf::RpcController* c
                                               PExecPlanFragmentResult* response,
                                               google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, response, done]() {
-        std::cout << "exec_plan_fragment func..." << std::endl;
         _exec_plan_fragment_in_pthread(controller, request, response, done);
     });
     if (!ret) {
@@ -297,7 +296,6 @@ void PInternalServiceImpl::exec_plan_fragment(google::protobuf::RpcController* c
 void PInternalServiceImpl::_exec_plan_fragment_in_pthread(
         google::protobuf::RpcController* controller, const PExecPlanFragmentRequest* request,
         PExecPlanFragmentResult* response, google::protobuf::Closure* done) {
-    std::cout << "_exec_plan_fragment_in_pthread func..." << std::endl;
     auto span = telemetry::start_rpc_server_span("exec_plan_fragment", controller);
     auto scope = OpentelemetryScope {span};
     brpc::ClosureGuard closure_guard(done);
@@ -324,7 +322,6 @@ void PInternalServiceImpl::exec_plan_fragment_prepare(google::protobuf::RpcContr
                                                       PExecPlanFragmentResult* response,
                                                       google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, response, done]() {
-        std::cout << "exec_plan_fragment_prepare fun..." << std::endl;
         _exec_plan_fragment_in_pthread(controller, request, response, done);
     });
     if (!ret) {
@@ -337,7 +334,6 @@ void PInternalServiceImpl::exec_plan_fragment_start(google::protobuf::RpcControl
                                                     PExecPlanFragmentResult* result,
                                                     google::protobuf::Closure* done) {
     bool ret = _light_work_pool.try_offer([this, controller, request, result, done]() {
-        std::cout << "exec_plan_fragment_start fun..." << std::endl;
         auto span = telemetry::start_rpc_server_span("exec_plan_fragment_start", controller);
         auto scope = OpentelemetryScope {span};
         brpc::ClosureGuard closure_guard(done);
@@ -437,7 +433,6 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
                                                       bool compact) {
     // Sometimes the BE do not receive the first heartbeat message and it receives request from FE
     // If BE execute this fragment, it will core when it wants to get some property from master info.
-    std::cout << "_exec_plan_fragment_impl func..." << std::endl;
     if (ExecEnv::GetInstance()->master_info() == nullptr) {
         return Status::InternalError(
                 "Have not receive the first heartbeat message from master, not ready to provide "
@@ -461,7 +456,6 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TExecPlanFragmentParams& params : t_request.paramsList) {
-            std::cout << "start TExecPlanFragmentParamsList VERSION_2 func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
@@ -474,7 +468,6 @@ Status PInternalServiceImpl::_exec_plan_fragment_impl(const std::string& ser_req
         }
 
         for (const TPipelineFragmentParams& params : t_request.params_list) {
-            std::cout << "start TPipelineFragmentParamsList VERSION_3 func ..." << std::endl;
             RETURN_IF_ERROR(_exec_env->fragment_mgr()->exec_plan_fragment(params));
         }
         return Status::OK();
@@ -532,7 +525,6 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
     bool ret = _heavy_work_pool.try_offer([request, result, done]() {
         VLOG_RPC << "fetch table schema";
         brpc::ClosureGuard closure_guard(done);
-        std::cout << "fetch_table_schema func ... " << std::endl;
         TFileScanRange file_scan_range;
         Status st = Status::OK();
         {
@@ -558,19 +550,47 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
         const TFileRangeDesc& range = file_scan_range.ranges.at(0);
         const TFileScanRangeParams& params = file_scan_range.params;
 
+        // TODO (zs) : A more elegant implementation is needed here
         if (params.file_type == TFileType::FILE_STREAM) {
-
-            auto stream_load_ctx = _exec_env->new_load_stream_mgr()->get(load_id);
-
-            stream_load_ctx->schema_buffer->
+            auto stream_load_ctx = ExecEnv::GetInstance()->new_load_stream_mgr()->get(params.load_id);
+            auto schema_buffer = stream_load_ctx->schema_buffer;
 
             std::vector<std::string> col_names;
             std::vector<TypeDescriptor> col_types;
-            result->set_column_nums(2);
-            for (size_t i = 0; i < 2; ++i) {
-                col_names.emplace_back("c" + std::to_string(i + 1));
+
+            std::string cur_col_name;
+            int pos = 0;
+            bool is_csv_plain = true;
+            const size_t buffer_max_size = 1 * 1024 * 1024;
+            char columns_separator = ',';
+            int idx = 0;
+
+            while (pos < buffer_max_size && schema_buffer->ptr[pos] != '\n') {
+                if (schema_buffer->ptr[pos] == columns_separator && !cur_col_name.empty()) {
+                    if (is_csv_plain) {
+                        col_names.emplace_back("c" + std::to_string(++idx));
+                    } else {
+                        col_names.push_back(cur_col_name);
+                    }
+                    cur_col_name.clear();
+                } else {
+                    cur_col_name += schema_buffer->ptr[pos];
+                }
+                ++pos;
             }
-            for (size_t i = 0; i < 2; ++i) {
+            if (pos == buffer_max_size) {
+                st = Status::InternalError("buffer max size is too small, cannot read schema beginning");
+                st.to_protobuf(result->mutable_status());
+                return;
+            }
+            if (!cur_col_name.empty()) {
+                if (is_csv_plain) {
+                    col_names.emplace_back("c" + std::to_string(++idx));
+                } else {
+                    col_names.push_back(cur_col_name);
+                }
+            }
+            for (size_t j = 0; j < col_names.size(); ++j) {
                 col_types.emplace_back(TypeDescriptor::create_string_type());
             }
             result->set_column_nums(col_names.size());
@@ -936,7 +956,6 @@ void PInternalServiceImpl::apply_filterv2(::google::protobuf::RpcController* con
 void PInternalServiceImpl::send_data(google::protobuf::RpcController* controller,
                                      const PSendDataRequest* request, PSendDataResult* response,
                                      google::protobuf::Closure* done) {
-    std::cout << "PInternalServiceImpl::send_data..." << std::endl;
     bool ret = _heavy_work_pool.try_offer([this, request, response, done]() {
         brpc::ClosureGuard closure_guard(done);
         TUniqueId load_id;

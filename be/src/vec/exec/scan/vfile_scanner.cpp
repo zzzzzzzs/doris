@@ -236,7 +236,6 @@ Status VFileScanner::open(RuntimeState* state) {
 // _fill_missing_columns        -     -    -  x                 -                x      -
 // _convert_to_output_block     -     -    -  -                 -                -      x
 Status VFileScanner::_get_block_impl(RuntimeState* state, Block* block, bool* eof) {
-    std::cout << "VFileScanner::_get_block_impl func..." << std::endl;
     do {
         if (_cur_reader == nullptr || _cur_reader_eof) {
             RETURN_IF_ERROR(_get_next_reader());

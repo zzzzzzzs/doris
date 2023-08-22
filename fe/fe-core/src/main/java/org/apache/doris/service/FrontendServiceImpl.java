@@ -130,10 +130,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
     private ConcurrentHashMap<Long, Integer> multiTableFragmentInstanceIdIndexMap =
         new ConcurrentHashMap<>(64);
 
-    private TExecPlanFragmentParams planFra = null;
-    long txn_idi = -1;
-    TransactionState txnState = null;
-
     public FrontendServiceImpl(ExecuteEnv exeEnv) {
         masterImpl = new MasterImpl();
         this.exeEnv = exeEnv;
@@ -1592,9 +1588,6 @@ public class FrontendServiceImpl implements FrontendService.Iface {
 
     @Override
     public TStreamLoadPutResult streamLoadPut(TStreamLoadPutRequest request) {
-        planFra = null;
-        txnState = null;
-        txn_idi = -1;
         String clientAddr = getClientAddrAsString();
         LOG.debug("receive stream load put request: {}, backend: {}", request, clientAddr);
 
@@ -1602,13 +1595,9 @@ public class FrontendServiceImpl implements FrontendService.Iface {
         TStatus status = new TStatus(TStatusCode.OK);
         result.setStatus(status);
         try {
-            // TODO 这里是测试用的，不是最终的代码
-//            request.setLoadSql("insert into test.t1(c1, c2) select c1, c2 from stream(\"format\" = \"CSV\", \"column_separator\" = \",\")");
+            // TODO(zs)：这里需要用其他的方式替代
             if (!Strings.isNullOrEmpty(request.getLoadSql())) {
-                streamLoadPutWithSqlImpl(request);
-                result.setParams(planFra);
-                result.getParams().setTxnConf(new TTxnParams().setTxnId(txn_idi));
-//                result.getParams().getTxnConf().setTxnId(txn_idi);
+                streamLoadPutWithSqlImpl(request, result);
                 return result;
             } else {
                 if (Config.enable_pipeline_load) {
@@ -1742,43 +1731,20 @@ public class FrontendServiceImpl implements FrontendService.Iface {
     }
 
 
-    private void streamLoadPutWithSqlImpl(TStreamLoadPutRequest request) throws UserException {
+    private void streamLoadPutWithSqlImpl(TStreamLoadPutRequest request, TStreamLoadPutResult result) throws UserException {
         LOG.info("receive stream load put request");
         String originStmt = request.getLoadSql();
-//        originStmt = "insert into test.t1 select * from local(   \"file_path\" = \"./example.csv\",   \"backend_id\" = \"12480\",   \"format\" = \"csv\");";
         String cluster = request.getCluster();
         if (Strings.isNullOrEmpty(cluster)) {
             cluster = SystemInfoService.DEFAULT_CLUSTER;
         }
-//        request.setFileType(TFileType.FILE_STREAM);
         ConnectContext ctx = new ConnectContext();
-//        TTxnParams txnParams = new TTxnParams();
-//        txnParams.setNeedTxn(true).setThriftRpcTimeoutMs(5000).setTxnId(request.getTxnId()).setDb("test").setTbl("t1");
-//        if (ctx.getSessionVariable().getEnableInsertStrict()) {
-//            txnParams.setMaxFilterRatio(0);
-//        } else {
-//            txnParams.setMaxFilterRatio(1.0);
-//        }
-//        if (ctx.getTxnEntry() == null) {
-//            ctx.setTxnEntry(new TransactionEntry());
-//        }
-//        ctx.getTxnEntry().setTxnConf(txnParams);
-//        ctx.getState().reset();
-//        ctx.setStartTime();
-//        ctx.initTracer("trace");
         if (Strings.isNullOrEmpty(request.getToken())) {
             checkPasswordAndPrivs(cluster, request.getUser(), request.getPasswd(), request.getDb(), request.getTbl(),
                 request.getUserIp(), PrivPredicate.LOAD);
         }
-//        String sqlHash = DigestUtils.md5Hex(originStmt);
-//        ctx.setSqlHash(sqlHash);
-//        ctx.getAuditEventBuilder().reset();
-//        ctx.getAuditEventBuilder()
-//            .setTimestamp(System.currentTimeMillis())
-//            .setClientIp(ctx.getMysqlChannel().getRemoteHostPortString())
-//            .setUser(ClusterNamespace.getNameFromFullName(ctx.getQualifiedUser()))
-//            .setSqlHash(ctx.getSqlHash());
         ctx.setEnv(Env.getCurrentEnv());
+        // TODO(zs) 这里需要去掉一个
         ctx.setLoadId(request.getLoadId());
         ctx.setQueryId(request.getLoadId());
         ctx.setCluster(SystemInfoService.DEFAULT_CLUSTER);
@@ -1793,44 +1759,28 @@ public class FrontendServiceImpl implements FrontendService.Iface {
             parsedStmt.setOrigStmt(new OriginStatement(originStmt, 0));
             parsedStmt.setUserInfo(ctx.getCurrentUserIdentity());
             StmtExecutor executor = new StmtExecutor(ctx, parsedStmt);
-//            executor.executeByLegacy(request.getLoadId());
             ctx.setExecutor(executor);
             TQueryOptions tQueryOptions = ctx.getSessionVariable().toThrift();
             executor.analyze(tQueryOptions);
-//            executor.execute();
             Analyzer analyzer = new Analyzer(ctx.getEnv(), ctx);
             Coordinator coord = new Coordinator(ctx, analyzer, executor.planner());
             coord.setLoadMemLimit(request.getExecMemLimit());
             coord.setQueryType(TQueryType.LOAD);
             QeProcessorImpl.INSTANCE.registerQuery(request.getLoadId(), coord);
-            System.out.println("开始执行 sql...");
-//            coord.exec();
 
-            TExecPlanFragmentParams plan = coord.getPlan();
-            // add table indexes to transaction state
-            Env env = Env.getCurrentEnv();
-            String fullDbName = ClusterNamespace.getFullName(cluster, request.getDb());
-            Database db = env.getInternalCatalog().getDbNullable(fullDbName);
-            Table table = db.getTableOrMetaException(request.getTbl(), TableType.OLAP);
-
-            txn_idi = parsedStmt.getTransactionId();
-            txnState = Env.getCurrentGlobalTransactionMgr()
-                .getTransactionState(db.getId(), txn_idi);
-            if (txnState == null) {
-                throw new UserException("txn does not exist: " + txn_idi);
-            }
-            txnState.addTableIndexes((OlapTable) table);
-            plan.setTableName(table.getName());
-            plan.file_scan_params = null;
-            plan.getQueryGlobals().setTimeZone(TimeUtils.DEFAULT_TIME_ZONE);
-
-            planFra = plan;
+            TExecPlanFragmentParams plan = coord.getStreamLoadPlan();
+            long txn_id = parsedStmt.getTransactionId();
+            result.setParams(plan);
+            result.getParams().setDbName(parsedStmt.getDbName());
+            result.getParams().setTableName(parsedStmt.getTbl());
+            // The txn_id here is obtained from the NativeInsertStmt
+            result.getParams().setTxnConf(new TTxnParams().setTxnId(txn_id));
         } catch (UserException e) {
-            LOG.warn("exec sql error {}", e);
-            throw new UserException("exec sql error", e);
+            LOG.warn("exec sql error", e);
+            throw new UserException("exec sql error");
         } catch (Throwable e) {
             LOG.warn("exec sql error catch unknown result.", e);
-            throw new UserException("exec sql error catch unknown result", e);
+            throw new UserException("exec sql error catch unknown result.");
         }
     }
 
