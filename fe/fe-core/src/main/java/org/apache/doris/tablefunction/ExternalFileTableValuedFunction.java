@@ -392,16 +392,13 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
             }
 
             fillColumns(result);
-        }
-        catch (RpcException e) {
+        } catch (RpcException e) {
             throw new AnalysisException("fetchTableStructureResult rpc exception", e);
-        }
-        catch (InterruptedException e) {
+        } catch (InterruptedException e) {
             throw new AnalysisException("fetchTableStructureResult interrupted exception", e);
         } catch (ExecutionException e) {
             throw new AnalysisException("fetchTableStructureResult exception", e);
-        }
-        catch (TException e) {
+        } catch (TException e) {
             throw new AnalysisException("getFetchTableStructureRequest exception", e);
         }
         return columns;
@@ -468,7 +465,7 @@ public abstract class ExternalFileTableValuedFunction extends TableValuedFunctio
         if (result.getColumnNums() == 0) {
             throw new AnalysisException("The amount of column is 0");
         }
-     // add fetched file columns
+        // add fetched file columns
         for (int idx = 0; idx < result.getColumnNums(); ++idx) {
             PTypeDesc type = result.getColumnTypes(idx);
             String colName = result.getColumnNames(idx);

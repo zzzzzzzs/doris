@@ -552,7 +552,8 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
 
         // TODO (zs) : A more elegant implementation is needed here
         if (params.file_type == TFileType::FILE_STREAM) {
-            auto stream_load_ctx = ExecEnv::GetInstance()->new_load_stream_mgr()->get(params.load_id);
+            auto stream_load_ctx =
+                    ExecEnv::GetInstance()->new_load_stream_mgr()->get(params.load_id);
             auto schema_buffer = stream_load_ctx->schema_buffer;
 
             std::vector<std::string> col_names;
@@ -562,6 +563,7 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
             int pos = 0;
             bool is_csv_plain = true;
             const size_t buffer_max_size = 1 * 1024 * 1024;
+            // TODO(zs) : need get columns_separator from _params
             char columns_separator = ',';
             int idx = 0;
 
@@ -579,7 +581,8 @@ void PInternalServiceImpl::fetch_table_schema(google::protobuf::RpcController* c
                 ++pos;
             }
             if (pos == buffer_max_size) {
-                st = Status::InternalError("buffer max size is too small, cannot read schema beginning");
+                st = Status::InternalError(
+                        "buffer max size is too small, cannot read schema beginning");
                 st.to_protobuf(result->mutable_status());
                 return;
             }

@@ -49,31 +49,31 @@ import java.util.stream.Collectors;
  * connected in that way forms a plan. The output of a plan is produced by the root
  * fragment and is either the result of the query or an intermediate result
  * needed by a different plan (such as a hash table).
- *
+ * <p>
  * Plans are grouped into cohorts based on the consumer of their output: all
  * plans that materialize intermediate results for a particular consumer plan
  * are grouped into a single cohort.
- *
+ * <p>
  * A PlanFragment encapsulates the specific tree of execution nodes that
  * are used to produce the output of the plan fragment, as well as output exprs,
  * destination node, etc. If there are no output exprs, the full row that is
  * produced by the plan root is marked as materialized.
- *
+ * <p>
  * A plan fragment can have one or many instances, each of which in turn is executed by
  * an individual node and the output sent to a specific instance of the destination
  * fragment (or, in the case of the root fragment, is materialized in some form).
- *
+ * <p>
  * A hash-partitioned plan fragment is the result of one or more hash-partitioning data
  * streams being received by plan nodes in this fragment. In the future, a fragment's
  * data partition could also be hash partitioned based on a scan node that is reading
  * from a physically hash-partitioned table.
- *
+ * <p>
  * The sequence of calls is:
  * - c'tor
  * - assemble with getters, etc.
  * - finalize()
  * - toThrift()
- *
+ * <p>
  * TODO: the tree of PlanNodes is connected across fragment boundaries, which makes
  *   it impossible search for things within a fragment (using TreeNode functions);
  *   fix that
@@ -298,7 +298,7 @@ public class PlanFragment extends TreeNode<PlanFragment> {
             result.setOutputSink(sink.toThrift());
         }
         if (dataPartitionForThrift == null) {
-//            result.setPartition(dataPartition.toThrift());
+            //            result.setPartition(dataPartition.toThrift());
             result.setPartition(DataPartition.UNPARTITIONED.toThrift());
         } else {
             result.setPartition(dataPartitionForThrift.toThrift());

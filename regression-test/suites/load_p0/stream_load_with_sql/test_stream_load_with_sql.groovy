@@ -286,196 +286,196 @@ suite("test_stream_load_with_sql", "p0") {
         try_sql "DROP TABLE IF EXISTS ${tableName6}"
     }
 
-    // // 7. test duplicate key
-    // def tableName7 = "test_stream_load_with_sql_duplicate_key"
+    // 7. test duplicate key
+    def tableName7 = "test_stream_load_with_sql_duplicate_key"
 
-    // try {
-    //     sql """
-    //     CREATE TABLE IF NOT EXISTS ${tableName7}
-    //     (
-    //         user_id LARGEINT NOT NULL,
-    //         username VARCHAR(50) NOT NULL,
-    //         city VARCHAR(20),
-    //         age SMALLINT,
-    //         sex TINYINT,
-    //         phone LARGEINT,
-    //         address VARCHAR(500),
-    //         register_time DATETIME
-    //     )
-    //     DUPLICATE KEY(`user_id`, `username`)
-    //     DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
-    //     PROPERTIES (
-    //     "replication_allocation" = "tag.location.default: 1"
-    //     )
-    //     """
+    try {
+        sql """
+        CREATE TABLE IF NOT EXISTS ${tableName7}
+        (
+            user_id LARGEINT NOT NULL,
+            username VARCHAR(50) NOT NULL,
+            city VARCHAR(20),
+            age SMALLINT,
+            sex TINYINT,
+            phone LARGEINT,
+            address VARCHAR(500),
+            register_time DATETIME
+        )
+        DUPLICATE KEY(`user_id`, `username`)
+        DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+        PROPERTIES (
+        "replication_allocation" = "tag.location.default: 1"
+        )
+        """
 
-    //     streamLoad {
-    //         set 'version', '1'
-    //         set 'sql', """
-    //                 insert into  ${db}.${tableName7} select * from stream("format"="csv")
-    //                 """
-    //         time 10000
-    //         file 'test_stream_load_with_sql_data_model.csv'
-    //         check { result, exception, startTime, endTime ->
-    //             if (exception != null) {
-    //                 throw exception
-    //             }
-    //             log.info("Stream load result: ${result}".toString())
-    //             def json = parseJson(result)
-    //             assertEquals("success", json.Status.toLowerCase())
-    //             assertEquals(11, json.NumberTotalRows)
-    //             assertEquals(0, json.NumberFilteredRows)
-    //         }
-    //     }
+        streamLoad {
+            set 'version', '1'
+            set 'sql', """
+                    insert into  ${db}.${tableName7} select * from stream("format"="csv")
+                    """
+            time 10000
+            file 'test_stream_load_with_sql_data_model.csv'
+            check { result, exception, startTime, endTime ->
+                if (exception != null) {
+                    throw exception
+                }
+                log.info("Stream load result: ${result}".toString())
+                def json = parseJson(result)
+                assertEquals("success", json.Status.toLowerCase())
+                assertEquals(11, json.NumberTotalRows)
+                assertEquals(0, json.NumberFilteredRows)
+            }
+        }
 
-    //     qt_sql7 "select * from ${tableName7}"
-    // } finally {
-    //     try_sql "DROP TABLE IF EXISTS ${tableName7}"
-    // }
+        qt_sql7 "select * from ${tableName7}"
+    } finally {
+        try_sql "DROP TABLE IF EXISTS ${tableName7}"
+    }
 
-    // // 8. test merge on read unique key
-    // def tableName8 = "test_stream_load_with_sql_unique_key_merge_on_read"
+    // 8. test merge on read unique key
+    def tableName8 = "test_stream_load_with_sql_unique_key_merge_on_read"
 
-    // try {
-    //     sql """
-    //     CREATE TABLE IF NOT EXISTS ${tableName8}
-    //     (
-    //         user_id LARGEINT NOT NULL,
-    //         username VARCHAR(50) NOT NULL,
-    //         city VARCHAR(20),
-    //         age SMALLINT,
-    //         sex TINYINT,
-    //         phone LARGEINT,
-    //         address VARCHAR(500),
-    //         register_time DATETIME
-    //     )
-    //     UNIQUE KEY(`user_id`, `username`)
-    //     DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
-    //     PROPERTIES (
-    //     "replication_allocation" = "tag.location.default: 1"
-    //     )
-    //     """
+    try {
+        sql """
+        CREATE TABLE IF NOT EXISTS ${tableName8}
+        (
+            user_id LARGEINT NOT NULL,
+            username VARCHAR(50) NOT NULL,
+            city VARCHAR(20),
+            age SMALLINT,
+            sex TINYINT,
+            phone LARGEINT,
+            address VARCHAR(500),
+            register_time DATETIME
+        )
+        UNIQUE KEY(`user_id`, `username`)
+        DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+        PROPERTIES (
+        "replication_allocation" = "tag.location.default: 1"
+        )
+        """
 
-    //     streamLoad {
-    //         set 'version', '1'
-    //         set 'sql', """
-    //                 insert into  ${db}.${tableName8} select * from stream("format"="csv")
-    //                 """
-    //         time 10000
-    //         file 'test_stream_load_with_sql_data_model.csv'
-    //         check { result, exception, startTime, endTime ->
-    //             if (exception != null) {
-    //                 throw exception
-    //             }
-    //             log.info("Stream load result: ${result}".toString())
-    //             def json = parseJson(result)
-    //             assertEquals("success", json.Status.toLowerCase())
-    //             assertEquals(11, json.NumberTotalRows)
-    //             assertEquals(0, json.NumberFilteredRows)
-    //         }
-    //     }
+        streamLoad {
+            set 'version', '1'
+            set 'sql', """
+                    insert into  ${db}.${tableName8} select * from stream("format"="csv")
+                    """
+            time 10000
+            file 'test_stream_load_with_sql_data_model.csv'
+            check { result, exception, startTime, endTime ->
+                if (exception != null) {
+                    throw exception
+                }
+                log.info("Stream load result: ${result}".toString())
+                def json = parseJson(result)
+                assertEquals("success", json.Status.toLowerCase())
+                assertEquals(11, json.NumberTotalRows)
+                assertEquals(0, json.NumberFilteredRows)
+            }
+        }
 
-    //     qt_sql8 "select * from ${tableName8}"
-    // } finally {
-    //     try_sql "DROP TABLE IF EXISTS ${tableName8}"
-    // }
+        qt_sql8 "select * from ${tableName8}"
+    } finally {
+        try_sql "DROP TABLE IF EXISTS ${tableName8}"
+    }
 
-    // // 9. test merge on write unique key
-    // def tableName9 = "test_stream_load_with_sql_unique_key_merge_on_write"
+    // 9. test merge on write unique key
+    def tableName9 = "test_stream_load_with_sql_unique_key_merge_on_write"
 
-    // try {
-    //     sql """
-    //     CREATE TABLE IF NOT EXISTS ${tableName9}
-    //     (
-    //         user_id LARGEINT NOT NULL,
-    //         username VARCHAR(50) NOT NULL,
-    //         city VARCHAR(20),
-    //         age SMALLINT,
-    //         sex TINYINT,
-    //         phone LARGEINT,
-    //         address VARCHAR(500),
-    //         register_time DATETIME
-    //     )
-    //     UNIQUE KEY(`user_id`, `username`)
-    //     DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
-    //     PROPERTIES (
-    //     "replication_allocation" = "tag.location.default: 1",
-    //     "enable_unique_key_merge_on_write" = "true"
-    //     )
-    //     """
+    try {
+        sql """
+        CREATE TABLE IF NOT EXISTS ${tableName9}
+        (
+            user_id LARGEINT NOT NULL,
+            username VARCHAR(50) NOT NULL,
+            city VARCHAR(20),
+            age SMALLINT,
+            sex TINYINT,
+            phone LARGEINT,
+            address VARCHAR(500),
+            register_time DATETIME
+        )
+        UNIQUE KEY(`user_id`, `username`)
+        DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+        PROPERTIES (
+        "replication_allocation" = "tag.location.default: 1",
+        "enable_unique_key_merge_on_write" = "true"
+        )
+        """
 
-    //     streamLoad {
-    //         set 'version', '1'
-    //         set 'sql', """
-    //                 insert into  ${db}.${tableName9} select * from stream("format"="csv")
-    //                 """
-    //         time 10000
-    //         file 'test_stream_load_with_sql_data_model.csv'
-    //         check { result, exception, startTime, endTime ->
-    //             if (exception != null) {
-    //                 throw exception
-    //             }
-    //             log.info("Stream load result: ${result}".toString())
-    //             def json = parseJson(result)
-    //             assertEquals("success", json.Status.toLowerCase())
-    //             assertEquals(11, json.NumberTotalRows)
-    //             assertEquals(0, json.NumberFilteredRows)
-    //         }
-    //     }
+        streamLoad {
+            set 'version', '1'
+            set 'sql', """
+                    insert into  ${db}.${tableName9} select * from stream("format"="csv")
+                    """
+            time 10000
+            file 'test_stream_load_with_sql_data_model.csv'
+            check { result, exception, startTime, endTime ->
+                if (exception != null) {
+                    throw exception
+                }
+                log.info("Stream load result: ${result}".toString())
+                def json = parseJson(result)
+                assertEquals("success", json.Status.toLowerCase())
+                assertEquals(11, json.NumberTotalRows)
+                assertEquals(0, json.NumberFilteredRows)
+            }
+        }
 
-    //     qt_sql9 "select * from ${tableName9}"
-    // } finally {
-    //     try_sql "DROP TABLE IF EXISTS ${tableName9}"
-    // }
+        qt_sql9 "select * from ${tableName9}"
+    } finally {
+        try_sql "DROP TABLE IF EXISTS ${tableName9}"
+    }
 
-    // // 10. test stream load multiple times
-    // def tableName10 = "test_stream_load_with_sql_multiple_times"
-    // Random rd = new Random()
-    // def disable_auto_compaction = "false"
-    // if (rd.nextBoolean()) {
-    //     disable_auto_compaction = "true"
-    // }
-    // log.info("disable_auto_compaction: ${disable_auto_compaction}".toString())
-    // try {
-    //     sql """
-    //     CREATE TABLE IF NOT EXISTS ${tableName10}
-    //     (
-    //         user_id LARGEINT NOT NULL,
-    //         username VARCHAR(50) NOT NULL,
-    //         money INT
-    //     )
-    //     DUPLICATE KEY(`user_id`, `username`)
-    //     DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
-    //     PROPERTIES (
-    //     "replication_allocation" = "tag.location.default: 1",
-    //     "disable_auto_compaction" = "${disable_auto_compaction}"
-    //     )
-    //     """
-    //     for (int i = 0; i < 3; ++i) {
-    //         streamLoad {
-    //             set 'version', '1'
-    //             set 'sql', """
-    //                 insert into  ${db}.${tableName10} select * from stream("format"="csv")
-    //                 """
-    //             time 10000
-    //             file 'test_stream_load_with_sql_multiple_times.csv'
-    //             check { result, exception, startTime, endTime ->
-    //                 if (exception != null) {
-    //                     throw exception
-    //                 }
-    //                 log.info("Stream load result: ${result}".toString())
-    //                 def json = parseJson(result)
-    //                 assertEquals("success", json.Status.toLowerCase())
-    //                 assertEquals(500, json.NumberTotalRows)
-    //                 assertEquals(0, json.NumberFilteredRows)
-    //             }
-    //         }
-    //     }
+    // 10. test stream load multiple times
+    def tableName10 = "test_stream_load_with_sql_multiple_times"
+    Random rd = new Random()
+    def disable_auto_compaction = "false"
+    if (rd.nextBoolean()) {
+        disable_auto_compaction = "true"
+    }
+    log.info("disable_auto_compaction: ${disable_auto_compaction}".toString())
+    try {
+        sql """
+        CREATE TABLE IF NOT EXISTS ${tableName10}
+        (
+            user_id LARGEINT NOT NULL,
+            username VARCHAR(50) NOT NULL,
+            money INT
+        )
+        DUPLICATE KEY(`user_id`, `username`)
+        DISTRIBUTED BY HASH(`user_id`) BUCKETS 1
+        PROPERTIES (
+        "replication_allocation" = "tag.location.default: 1",
+        "disable_auto_compaction" = "${disable_auto_compaction}"
+        )
+        """
+        for (int i = 0; i < 3; ++i) {
+            streamLoad {
+                set 'version', '1'
+                set 'sql', """
+                    insert into  ${db}.${tableName10} select * from stream("format"="csv")
+                    """
+                time 10000
+                file 'test_stream_load_with_sql_multiple_times.csv'
+                check { result, exception, startTime, endTime ->
+                    if (exception != null) {
+                        throw exception
+                    }
+                    log.info("Stream load result: ${result}".toString())
+                    def json = parseJson(result)
+                    assertEquals("success", json.Status.toLowerCase())
+                    assertEquals(500, json.NumberTotalRows)
+                    assertEquals(0, json.NumberFilteredRows)
+                }
+            }
+        }
 
-    //     qt_sql10 "select count(*) from ${tableName10}"
-    // } finally {
-    //     try_sql "DROP TABLE IF EXISTS ${tableName10}"
-    // }
+        qt_sql10 "select count(*) from ${tableName10}"
+    } finally {
+        try_sql "DROP TABLE IF EXISTS ${tableName10}"
+    }
 
     // // 11. test column separator 
     // def tableName11 = "test_stream_load_with_sql_column_separator"

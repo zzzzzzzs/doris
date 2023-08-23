@@ -710,7 +710,6 @@ Status CsvReader::_prepare_parse(size_t* read_line, bool* is_parse_name) {
             _profile, _file_reader, _decompressor.get(), _size, _line_delimiter,
             _line_delimiter_length, start_offset);
 
-
     return Status::OK();
 }
 

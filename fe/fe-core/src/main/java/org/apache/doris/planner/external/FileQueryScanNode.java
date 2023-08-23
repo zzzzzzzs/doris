@@ -96,7 +96,7 @@ public abstract class FileQueryScanNode extends FileScanNode {
      * These scan nodes do not have corresponding catalog/database/table info, so no need to do priv check
      */
     public FileQueryScanNode(PlanNodeId id, TupleDescriptor desc, String planNodeName,
-                             StatisticalType statisticalType, boolean needCheckColumnPriv) {
+            StatisticalType statisticalType, boolean needCheckColumnPriv) {
         super(id, desc, planNodeName, statisticalType, needCheckColumnPriv);
     }
 
@@ -273,7 +273,7 @@ public abstract class FileQueryScanNode extends FileScanNode {
                 TScanRangeLocation location = new TScanRangeLocation();
                 // Use consistent hash to assign the same scan range into the same backend among different queries
                 Backend selectedBackend = ConnectContext.get().getSessionVariable().enableFileCache
-                    ? backendPolicy.getNextConsistentBe(curLocations) : backendPolicy.getNextBe();
+                        ? backendPolicy.getNextConsistentBe(curLocations) : backendPolicy.getNextBe();
                 location.setBackendId(selectedBackend.getId());
                 location.setServer(new TNetworkAddress(selectedBackend.getHost(), selectedBackend.getBePort()));
                 curLocations.addToLocations(location);
@@ -410,7 +410,7 @@ public abstract class FileQueryScanNode extends FileScanNode {
     }
 
     private TFileRangeDesc createFileRangeDesc(FileSplit fileSplit, List<String> columnsFromPath,
-                                               List<String> columnsFromPathKeys, TFileType locationType)
+            List<String> columnsFromPathKeys, TFileType locationType)
             throws UserException {
         TFileRangeDesc rangeDesc = new TFileRangeDesc();
         rangeDesc.setStartOffset(fileSplit.getStart());

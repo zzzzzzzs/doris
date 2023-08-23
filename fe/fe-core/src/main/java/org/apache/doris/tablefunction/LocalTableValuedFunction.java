@@ -98,8 +98,7 @@ public class LocalTableValuedFunction extends ExternalFileTableValuedFunction {
         requestBuilder.setPattern(filePath);
         try {
             Future<PGlobResponse> response = proxy.glob(address, requestBuilder.build());
-//            PGlobResponse globResponse = response.get(5, TimeUnit.SECONDS);
-            PGlobResponse globResponse = response.get();
+            PGlobResponse globResponse = response.get(5, TimeUnit.SECONDS);
             if (globResponse.getStatus().getStatusCode() != 0) {
                 throw new AnalysisException(
                         "error code: " + globResponse.getStatus().getStatusCode()

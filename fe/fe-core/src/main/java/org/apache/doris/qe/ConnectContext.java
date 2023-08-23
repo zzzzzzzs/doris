@@ -344,13 +344,13 @@ public class ConnectContext {
         this.loadId = loadId;
     }
 
-//    public void setStreamLoadInfo(LoadTaskInfo streamLoadInfo) {
-//        this.streamLoadInfo = streamLoadInfo;
-//    }
-//
-//    public LoadTaskInfo getStreamLoadInfo() {
-//        return streamLoadInfo;
-//    }
+    //    public void setStreamLoadInfo(LoadTaskInfo streamLoadInfo) {
+    //        this.streamLoadInfo = streamLoadInfo;
+    //    }
+    //
+    //    public LoadTaskInfo getStreamLoadInfo() {
+    //        return streamLoadInfo;
+    //    }
 
     public void setStmtId(long stmtId) {
         this.stmtId = stmtId;
@@ -686,7 +686,7 @@ public class ConnectContext {
             if (executor != null && executor.isInsertStmt()) {
                 timeoutTag = "insert";
             }
-            //to ms
+            // to ms
             long timeout = getExecTimeout() * 1000L;
             if (delta > timeout) {
                 LOG.warn("kill {} timeout, remote: {}, query timeout: {}",
